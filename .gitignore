@@ -1,0 +1,43 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Database files
+*.db
+*.sqlite*
+
+# Environment files (ignore real ones, keep .env.example)
+.env
+.env.local
+
+# Data files
+contacts_*.json
+hr_contacts.json
+target_companies.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+../.idea/
+.vscode/
+
+# Personal files
+resume.pdf
+EOF
+
+# Testers
+mail_gun_test_SMTP.py
+quick_resume_check.py
+simple_mailer.py
+smtp_test_script.py
+test_email.py
+test_hunter.py
+mail_body_test.py
+import_all_json_contacts_test.py

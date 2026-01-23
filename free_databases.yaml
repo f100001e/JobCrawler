@@ -1,0 +1,40 @@
+# free_databases.yaml
+# FREE public databases that require NO API keys
+
+# Enable/disable sources as needed
+yc_export:
+  enabled: true
+
+yc_companies_page:
+  enabled: true
+
+github_yc_dataset:
+  enabled: true
+
+github_startup_resources:
+  enabled: true
+
+public_apis_org:
+  enabled: true
+
+techcrunch_feed:
+  enabled: true
+
+hacker_news_whoishiring:
+  enabled: true
+
+edgar_companies:
+  enabled: true
+
+local_domains:
+  enabled: true
+  path: "target_companies.txt"  # Your custom list
+
+angel_list_public:
+  enabled: true
+
+product_hunt_public:
+  enabled: true
+
+indie_hackers:
+  enabled: true
