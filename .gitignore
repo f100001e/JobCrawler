@@ -41,3 +41,4 @@ test_email.py
 test_hunter.py
 mail_body_test.py
 import_all_json_contacts_test.py
+check_delivery_status.py
