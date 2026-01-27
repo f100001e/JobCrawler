@@ -9,11 +9,11 @@ from pathlib import Path
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
-
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
 DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
+WHITELIST_MODE = os.getenv("WHITELIST_MODE", "false").lower() == "true"
 
 DB_PATH = (BASE_DIR / os.getenv("DB_PATH", "metacrawler.db")).resolve()
 print("USING DB:", DB_PATH)
@@ -23,12 +23,13 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 FROM_EMAIL = os.getenv("FROM_EMAIL", SMTP_USER)
+HELO_DOMAIN = os.getenv("HELO_DOMAIN", "presspassla.com")  # For whitelist identification
 
 rp = Path(os.getenv("RESUME_PATH", "resume.pdf"))
 RESUME_PATH = rp if rp.is_absolute() else (BASE_DIR / rp).resolve()
 
-SEND_DELAY = float(os.getenv("SEND_DELAY_SECONDS", "45"))
-MAX_PER_RUN = int(os.getenv("MAX_EMAILS_PER_RUN", "20"))
+SEND_DELAY = float(os.getenv("SEND_DELAY_SECONDS"))
+MAX_PER_RUN = int(os.getenv("MAX_EMAILS_PER_RUN"))
 
 
 def utc_now_iso() -> str:
@@ -80,15 +81,17 @@ def fetch_send_queue(conn: sqlite3.Connection, limit: int):
 
     # Now run the actual query
     cur.execute("""
-        SELECT c.id, c.email, c.name, c.confidence, c.type, co.domain, co.category, c.last_error
+        SELECT c.id, c.email, c.name, c.confidence, c.type, 
+               COALESCE(co.domain, 'Unknown') as domain,
+               COALESCE(co.category, 'engineering') as category,
+               c.last_error
         FROM contacts c
-        JOIN companies co ON co.id = c.company_id
+        LEFT JOIN companies co ON co.id = c.company_id
         WHERE c.contacted = 0
         ORDER BY c.confidence DESC NULLS LAST, c.id ASC
         LIMIT ?
     """, (limit,))
     return cur.fetchall()
-
 
 def mark_sent(conn: sqlite3.Connection, contact_id: int):
     conn.execute("""
@@ -123,7 +126,7 @@ I'm reaching out regarding {cat} roles at {domain}.
 Resume attached. If there's a better contact or process, I'd appreciate a pointer.
 
 Best,
-NAME
+NAME HERE
 """
 
 
@@ -172,6 +175,16 @@ def check_and_import_json_if_empty():
             print("   Run crawler.py to find more companies.")
             return False
 
+
+def test_smtp_connection(server):
+    """Test if SMTP connection is still alive"""
+    try:
+        status = server.noop()[0]
+        return status == 250
+    except:
+        return False
+
+
 def run_mailer():
     # Check database first
     if not check_and_import_json_if_empty():
@@ -191,53 +204,86 @@ def run_mailer():
             server = None
             print(f"[DRY RUN] Would send up to {len(rows)} emails. No SMTP connection will be made.")
         else:
-            if not (SMTP_HOST and SMTP_USER and SMTP_PASS and FROM_EMAIL):
-                raise RuntimeError("Missing SMTP_* or FROM_EMAIL env vars")
+            if not SMTP_HOST:
+                raise RuntimeError("Missing SMTP_HOST env var")
+            if not FROM_EMAIL:
+                raise RuntimeError("Missing FROM_EMAIL env var")
+
+            print(f"🔌 Connecting to {SMTP_HOST}:{SMTP_PORT}...")
+            print(f"   Mode: {'IP Whitelist' if WHITELIST_MODE else 'SMTP Auth'}")
+            print(f"   HELO Domain: {HELO_DOMAIN}")
 
             ctx = ssl.create_default_context()
             server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
-            server.ehlo()
+
+            # Always identify with HELO domain
+            server.ehlo(HELO_DOMAIN)
             server.starttls(context=ctx)
-            server.ehlo()
-            server.login(SMTP_USER, SMTP_PASS)
+            server.ehlo(HELO_DOMAIN)  # Again after STARTTLS
+
+            # Only authenticate if NOT in whitelist mode
+            if not WHITELIST_MODE:
+                if SMTP_USER and SMTP_PASS:
+                    print(f"🔐 Authenticating as {SMTP_USER}...")
+                    server.login(SMTP_USER, SMTP_PASS)
+                    print("✅ Authentication successful")
+                else:
+                    print("⚠ No credentials provided for auth mode. Assuming IP whitelist.")
+            else:
+                print("✅ Using IP whitelist (no authentication)")
 
         try:
             sent = 0
             failed = 0
-            for r in rows:
+            for i, r in enumerate(rows, 1):
                 contact_id, to_email, name, confidence, email_type, domain, category, last_error = r
 
-                subject = f"Application: {(category or 'engineering')} roles"
+                subject = f"Application: {(category or 'Engineering')} roles"
                 body = default_body(domain, category, name=name, email_type=email_type)
 
                 try:
                     msg = build_message(to_email, subject, body)
 
                     if DRY_RUN:
-                        print(f"[DRY RUN] Would send -> {to_email} ({domain})")
+                        print(f"[DRY RUN {i}/{len(rows)}] Would send -> {to_email} ({domain})")
                     else:
+                        # Check connection before sending
+                        if not test_smtp_connection(server):
+                            print("⚠ Connection lost, reconnecting...")
+                            server.ehlo(HELO_DOMAIN)
+
                         server.send_message(msg)
 
                     mark_sent(conn, contact_id)
                     conn.commit()
                     sent += 1
-                    print(f"Sent [{sent}/{len(rows)}] -> {to_email}")
+                    print(f"✅ Sent [{sent}/{len(rows)}] -> {to_email}")
 
                 except Exception as e:
                     dismiss_failed(conn, contact_id, str(e))
                     conn.commit()
-                    print(f"Dismissed (failed) -> {to_email}: {e}")
+                    print(f"❌ Failed -> {to_email}: {e}")
                     failed += 1
-                time.sleep(SEND_DELAY)
+
+                # Add delay between emails
+                if i < len(rows):  # Don't wait after the last one
+                    print(f"⏳ Waiting {SEND_DELAY} seconds...")
+                    time.sleep(SEND_DELAY)
 
         finally:
             if server is not None:
                 server.quit()
+                print("🔌 SMTP connection closed")
 
-        print(f"\n=== Summary ===")
-        print(f"Sent: {sent}")
-        print(f"Failed: {failed}")
-        print(f"Total processed: {sent + failed}")
+        print(f"\n{'=' * 40}")
+        print(f"📊 SUMMARY")
+        print(f"{'=' * 40}")
+        print(f"✅ Sent: {sent}")
+        print(f"❌ Failed: {failed}")
+        print(f"📋 Total: {sent + failed}/{len(rows)}")
+        if sent + failed < len(rows):
+            print(f"⚠ Skipped: {len(rows) - (sent + failed)}")
+
 
 if __name__ == "__main__":
     run_mailer()
