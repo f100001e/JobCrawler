@@ -706,33 +706,33 @@ def fetch_from_free_source(source_id: str, source_config: Dict) -> List[Dict]:
 
 # ===== MAIN FUNCTIONS =====
 
-def discover_companies_from_free_sources() -> List[Dict]:
-    """Discover companies from all free public sources"""
+def discover_companies_from_local_file_only() -> List[Dict]:
+    """
+    Discover companies ONLY from local companies.txt file
+    Skips all other free sources
+    """
     print("\n" + "=" * 60)
-    print("DISCOVERING COMPANIES FROM FREE PUBLIC SOURCES")
+    print("DISCOVERING COMPANIES FROM LOCAL FILE ONLY")
     print("=" * 60 + "\n")
 
-    # Load free sources
+    # Load only the local_domains source
     sources = load_free_database_sources()
 
-    # Show enabled sources
-    enabled_sources = {k: v for k, v in sources.items() if v.get('enabled', True)}
-    print(f"Enabled sources: {len(enabled_sources)}/{len(sources)}")
+    if 'local_domains' not in sources:
+        print("❌ 'local_domains' source not found in configuration")
+        return []
 
-    all_companies = []
+    source_config = sources['local_domains']
+    print(f"📄 Using source: {source_config.get('name', 'local_domains')}")
 
-    for source_id, source_config in enabled_sources.items():
-        companies = fetch_from_free_source(source_id, source_config)
-        all_companies.extend(companies)
-
-        # Be extra polite between sources
-        time.sleep(random.uniform(1.0, 3.0))
+    # Fetch from local file only
+    companies = fetch_from_free_source('local_domains', source_config)
 
     # Deduplicate
     unique_companies = []
     seen_domains = set()
 
-    for company in all_companies:
+    for company in companies:
         try:
             domain = extract_domain(company['url'])
             if domain not in seen_domains:
@@ -742,7 +742,7 @@ def discover_companies_from_free_sources() -> List[Dict]:
             continue
 
     print(f"\n{'=' * 60}")
-    print(f"📊 TOTAL UNIQUE COMPANIES FOUND: {len(unique_companies)}")
+    print(f"📊 LOCAL FILE COMPANIES FOUND: {len(unique_companies)}")
     print(f"{'=' * 60}\n")
 
     return unique_companies
@@ -1007,5 +1007,35 @@ def main():
     print("CRAWLER COMPLETE")
     print("=" * 60)
 
+
 if __name__ == "__main__":
-    main();
+    import sys
+
+    # Check for command-line arguments
+    if len(sys.argv) > 1 and sys.argv[1] == "--local-only":
+        # Run local file only mode
+        print("\n" + "=" * 60)
+        print("LOCAL FILE ONLY MODE")
+        print("=" * 60)
+
+        # 1) Initialize database schema
+        init_db()
+
+        # 2) Discover companies from local file only
+        companies = discover_companies_from_local_file_only()
+
+        if not companies:
+            print("No companies found in local file. Exiting.")
+            sys.exit(0)
+
+        # 3) Process companies with Hunter.io
+        max_to_process = min(50, len(companies))
+        process_companies(companies, max_companies=max_to_process)
+
+        print("\n" + "=" * 60)
+        print("LOCAL FILE CRAWLER COMPLETE")
+        print("=" * 60)
+
+    else:
+        # Run normal mode (all sources)
+        main()

@@ -13,14 +13,16 @@ def show_menu():
     print("JOB CRAWLER SYSTEM")
     print("=" * 60)
     print("\nWhat would you like to do?")
-    print("1. Run crawler (find companies & get emails)")
-    print("2. Run mailer (send emails)")
-    print("3. Import JSON contacts only")
-    print("4. Check database status")
-    print("5. Reset contacted status")
-    print("6. Exit")
+    print("1. Run crawler (ALL sources - find companies & get emails)")
+    print("2. Run crawler (LOCAL FILE only - companies.txt)")
+    print("3. Run mailer (send emails) - Normal SMTP")
+    print("4. Run mailer - Google Admin IPv4 only")
+    print("5. Import JSON contacts only")
+    print("6. Check database status")
+    print("7. Reset contacted status")
+    print("8. Exit")
 
-    choice = input("\nEnter choice (1-6): ").strip()
+    choice = input("\nEnter choice (1-8): ").strip()
     return choice
 
 
@@ -36,6 +38,22 @@ def run_crawler():
         print("❌ crawler.py not found!")
 
 
+def run_crawler_local_only():
+    """Run crawler only for companies in local companies.txt file"""
+    print("\n" + "=" * 60)
+    print("RUNNING CRAWLER (LOCAL FILE ONLY)")
+    print("=" * 60)
+
+    # We need to modify crawler.py to have this option
+    # Option A: Pass command-line argument to crawler.py
+    try:
+        subprocess.run([sys.executable, "crawler.py", "--local-only"], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Local-only crawler failed with error: {e}")
+    except FileNotFoundError:
+        print("❌ crawler.py not found!")
+
+
 def run_mailer():
     print("\n" + "=" * 60)
     print("RUNNING MAILER")
@@ -47,6 +65,18 @@ def run_mailer():
     except FileNotFoundError:
         print("❌ mailer.py not found!")
 
+def run_mailer_google_admin():
+    """Run mailer with Google Admin IPv4-only connection"""
+    print("\n" + "=" * 60)
+    print("RUNNING MAILER (GOOGLE ADMIN IPv4 MODE)")
+    print("=" * 60)
+    try:
+        # Pass --google-admin flag to mailer.py
+        subprocess.run([sys.executable, "mailer.py", "--google-admin"], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Google Admin mailer failed with error: {e}")
+    except FileNotFoundError:
+        print("❌ mailer.py not found!")
 
 def import_json_only():
     print("\n" + "=" * 60)
@@ -167,23 +197,26 @@ def main():
         choice = show_menu()
 
         if choice == "1":
-            run_crawler()
+            run_crawler()  # All sources
         elif choice == "2":
-            run_mailer()
+            run_crawler_local_only()  # Local file only
         elif choice == "3":
-            import_json_only()
+            run_mailer()  # Normal mailer
         elif choice == "4":
-            check_database()
+            run_mailer_google_admin()  # Google Admin IPv4
         elif choice == "5":
-            reset_contacts()
+            import_json_only()
         elif choice == "6":
+            check_database()
+        elif choice == "7":
+            reset_contacts()
+        elif choice == "8":  # Changed from 7 to 8
             print("\nGoodbye!")
             break
         else:
             print("\nInvalid choice. Please try again.")
 
         input("\nPress Enter to continue...")
-
-
+        
 if __name__ == "__main__":
     main()

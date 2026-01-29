@@ -126,7 +126,7 @@ I'm reaching out regarding {cat} roles at {domain}.
 Resume attached. If there's a better contact or process, I'd appreciate a pointer.
 
 Best,
-NAME HERE
+FLE
 """
 
 
@@ -214,12 +214,46 @@ def run_mailer():
             print(f"   HELO Domain: {HELO_DOMAIN}")
 
             ctx = ssl.create_default_context()
-            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
 
-            # Always identify with HELO domain
-            server.ehlo(HELO_DOMAIN)
-            server.starttls(context=ctx)
-            server.ehlo(HELO_DOMAIN)  # Again after STARTTLS
+            # CHECK IF IN GOOGLE ADMIN MODE
+            import sys
+            if '--google-admin' in sys.argv:
+                # Force IPv4 connection
+                import socket
+                print("⚡ Google Admin mode: Forcing IPv4...")
+                addrinfos = socket.getaddrinfo(
+                    SMTP_HOST, SMTP_PORT,
+                    socket.AF_INET,  # IPv4 only
+                    socket.SOCK_STREAM,
+                    socket.IPPROTO_TCP
+                )
+
+                if not addrinfos:
+                    raise socket.gaierror(f"No IPv4 addresses found for {SMTP_HOST}")
+
+                ip, port = addrinfos[0][4][0], addrinfos[0][4][1]
+                print(f"   Connecting via IPv4: {ip}:{port}")
+
+                # Create custom SSL context for IP connection
+                ipv4_ctx = ssl.create_default_context()
+                ipv4_ctx.check_hostname = False  # Allow IP connection
+                ipv4_ctx.verify_mode = ssl.CERT_NONE  # Skip cert verification
+
+                server = smtplib.SMTP(ip, port, timeout=30)
+
+                # Always identify with HELO domain
+                server.ehlo(HELO_DOMAIN)
+                server.starttls(context=ipv4_ctx)  # Use custom context
+                server.ehlo(HELO_DOMAIN)  # Again after STARTTLS
+
+            else:
+                # Normal connection
+                server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
+
+                # Always identify with HELO domain
+                server.ehlo(HELO_DOMAIN)
+                server.starttls(context=ctx)
+                server.ehlo(HELO_DOMAIN)  # Again after STARTTLS
 
             # Only authenticate if NOT in whitelist mode
             if not WHITELIST_MODE:
@@ -285,5 +319,54 @@ def run_mailer():
             print(f"⚠ Skipped: {len(rows) - (sent + failed)}")
 
 
-if __name__ == "__main__":
+# ===== GOOGLE ADMIN IPv4 OPTION =====
+
+def run_google_admin_ipv4():
+    """
+    Run mailer with Google Admin IPv4-only connection
+    This is a specialized mode that forces IPv4 for IP whitelist auth
+    """
+    print("\n" + "=" * 60)
+    print("GOOGLE ADMIN IPv4-ONLY MAILER")
+    print("=" * 60)
+
+    # Force IPv4 resolution
+    import socket
+
+    host = "smtp-relay.gmail.com"
+    port = 587
+
+    print("🔌 Forcing IPv4 connection for Google Admin...")
+
+    # Resolve hostname to IPv4 only
+    addrinfos = socket.getaddrinfo(
+        host, port,
+        socket.AF_INET,  # IPv4 only
+        socket.SOCK_STREAM,
+        socket.IPPROTO_TCP
+    )
+
+    if not addrinfos:
+        raise socket.gaierror(f"No IPv4 addresses found for {host}")
+
+    # Get first IPv4 address
+    ip, port = addrinfos[0][4][0], addrinfos[0][4][1]
+    print(f"   Resolved to IPv4: {ip}:{port}")
+
+    # Override SMTP_HOST with IPv4 address
+    import os
+    os.environ["SMTP_HOST"] = ip  # Temporarily override
+
+    # Now run the normal mailer but with IPv4 host
     run_mailer()
+
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--google-admin":
+        # Run in Google Admin IPv4 mode
+        run_google_admin_ipv4()
+    else:
+        # Run normal mailer
+        run_mailer()
