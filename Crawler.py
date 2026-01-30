@@ -973,6 +973,61 @@ def import_json_contacts(json_path: Path):
 
         conn.commit()
 
+
+def discover_companies_from_free_sources() -> List[Dict]:
+    """
+    Discover companies from ALL enabled free public sources
+    """
+    print("\n" + "=" * 60)
+    print("DISCOVERING COMPANIES FROM FREE PUBLIC SOURCES")
+    print("=" * 60 + "\n")
+
+    # Load all free sources
+    sources = load_free_database_sources()
+
+    all_companies = []
+    enabled_count = 0
+
+    # Count enabled sources
+    for sid, config in sources.items():
+        if config.get('enabled', True):
+            enabled_count += 1
+
+    print(f"📡 Checking {enabled_count} enabled free sources...\n")
+
+    # Process each enabled source
+    for i, (source_id, source_config) in enumerate(sources.items(), 1):
+        if not source_config.get('enabled', True):
+            continue
+
+        name = source_config.get('name', source_id)
+        print(f"[{i}/{enabled_count}] {name}")
+
+        companies = fetch_from_free_source(source_id, source_config)
+        all_companies.extend(companies)
+
+        # Small delay between sources
+        time.sleep(0.5)
+
+    # Deduplicate by domain
+    unique_companies = []
+    seen_domains = set()
+
+    for company in all_companies:
+        try:
+            domain = extract_domain(company['url'])
+            if domain not in seen_domains:
+                seen_domains.add(domain)
+                unique_companies.append(company)
+        except:
+            continue
+
+    print(f"\n{'=' * 60}")
+    print(f"📊 TOTAL UNIQUE COMPANIES FOUND: {len(unique_companies)}")
+    print(f"{'=' * 60}\n")
+
+    return unique_companies
+
 def main():
     """Main execution"""
     print("\n" + "=" * 60)

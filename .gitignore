@@ -33,13 +33,4 @@ resume.pdf
 EOF
 
 # Testers
-mail_gun_test_SMTP.py
-quick_resume_check.py
-simple_mailer.py
-smtp_test_script.py
-test_email.py
-test_hunter.py
 mail_body_test.py
-import_all_json_contacts_test.py
-check_delivery_status.py
-debug_smtp.py

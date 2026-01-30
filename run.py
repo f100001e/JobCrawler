@@ -217,6 +217,6 @@ def main():
             print("\nInvalid choice. Please try again.")
 
         input("\nPress Enter to continue...")
-        
+
 if __name__ == "__main__":
     main()
