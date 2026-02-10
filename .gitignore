@@ -34,3 +34,6 @@ EOF
 
 # Testers
 mail_body_test.py
+diagnose_spam.py
+
+corporate_mailer_ppla.py
