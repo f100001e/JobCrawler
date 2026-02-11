@@ -1,0 +1,54 @@
+[
+  {
+    "company": "fastcompany.com",
+    "domain": "fastcompanycom.com",
+    "organization": "fastcompany.com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 21:27:32",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 526,
+    "source_line": "fastcompany.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "fastcompanycom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  },
+  {
+    "company": "inc.com",
+    "domain": "inccom.com",
+    "organization": "inc.com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 21:27:35",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 527,
+    "source_line": "inc.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "inccom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  }
+]

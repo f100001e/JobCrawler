@@ -17,12 +17,13 @@ def show_menu():
     print("2. Run crawler (LOCAL FILE only - companies.txt)")
     print("3. Run mailer (send emails) - Normal SMTP")
     print("4. Run mailer - Google Admin IPv4 only")
-    print("5. Import JSON contacts only")
-    print("6. Check database status")
-    print("7. Reset contacted status")
-    print("8. Exit")
+    print("5. 📧 Test Email (preview formatting, forced IPv4)")  # New option
+    print("6. Import JSON contacts only")
+    print("7. Check database status")
+    print("8. Reset contacted status")
+    print("9. Exit")
 
-    choice = input("\nEnter choice (1-8): ").strip()
+    choice = input("\nEnter choice (1-9): ").strip()
     return choice
 
 
@@ -77,6 +78,49 @@ def run_mailer_google_admin():
         print(f"❌ Google Admin mailer failed with error: {e}")
     except FileNotFoundError:
         print("❌ mailer.py not found!")
+
+
+def test_email_ipv4():
+    """Send a test email using forced IPv4 connection to avoid spam folders"""
+    print("\n" + "=" * 60)
+    print("📧 TEST EMAIL - FORCED IPv4 MODE")
+    print("=" * 60)
+
+    mailer_file = BASE_DIR / "mailer.py"
+    if not mailer_file.exists():
+        print(f"❌ mailer.py not found!")
+        return
+
+    # Check for .env file
+    env_file = BASE_DIR / ".env"
+    if not env_file.exists():
+        print(f"❌ .env file not found! SMTP settings are required.")
+        return
+
+    email = input("\nEnter test email address: ").strip()
+    if not email:
+        print("❌ Email address required!")
+        return
+
+    print(f"\n📨 Sending test resume email to: {email}")
+    print("   Mode: Forced IPv4 (Google Admin mode)")
+    print("   This helps ensure emails don't go to spam")
+    print("   Check your spam folder and mark as 'Not Spam' if needed")
+
+    # Run mailer with test flag and Google Admin IPv4 mode
+    cmd = [sys.executable, "mailer.py", "--test-send", email, "--google-admin"]
+
+    try:
+        subprocess.run(cmd, check=True)
+        print(f"\n✅ Test email sent successfully!")
+        print(f"   Please check {email} (including spam folder)")
+        print(f"   If in spam, mark as 'Not Spam' to train the filter")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Test failed with error: {e}")
+    except KeyboardInterrupt:
+        print("\n⚠️  Test interrupted by user")
+
+
 
 def import_json_only():
     print("\n" + "=" * 60)
@@ -204,13 +248,15 @@ def main():
             run_mailer()  # Normal mailer
         elif choice == "4":
             run_mailer_google_admin()  # Google Admin IPv4
-        elif choice == "5":
+        elif choice == "5":  # New test email option
+            test_email_ipv4()
+        elif choice == "6":  # Renumbered
             import_json_only()
-        elif choice == "6":
+        elif choice == "7":  # Renumbered
             check_database()
-        elif choice == "7":
+        elif choice == "8":  # Renumbered
             reset_contacts()
-        elif choice == "8":  # Changed from 7 to 8
+        elif choice == "9":  # Renumbered
             print("\nGoodbye!")
             break
         else:

@@ -1,0 +1,2929 @@
+[
+  {
+    "company": "nytimes",
+    "domain": "nytimes.com",
+    "organization": "The New York Times",
+    "total_contacts_found": 99,
+    "decision_makers_found": 99,
+    "top_contacts": [
+      {
+        "email": "duenes@nytimes.com",
+        "name": "Steve Duenes",
+        "position": "Creative Director",
+        "department": "design",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 10,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "webserver.lemoyne.edu",
+            "uri": "https://webserver.lemoyne.edu/hsu/internship.htm",
+            "extracted_on": "2017-10-23",
+            "last_seen_on": "2026-02-09",
+            "still_on_page": true
+          },
+          {
+            "domain": "web.lemoyne.edu",
+            "uri": "https://web.lemoyne.edu/~hsu/internship.htm",
+            "extracted_on": "2015-01-28",
+            "last_seen_on": "2026-01-30",
+            "still_on_page": true
+          },
+          {
+            "domain": "web2.lemoyne.edu",
+            "uri": "https://web2.lemoyne.edu/hsu/internship.htm",
+            "extracted_on": "2017-10-29",
+            "last_seen_on": "2026-01-24",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "vivian.yee@nytimes.com",
+        "name": "Vivian Yee",
+        "position": "Bureau Chief",
+        "department": "executive",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 9,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20vivian%20yee%20nytimes",
+            "extracted_on": "2025-01-13",
+            "last_seen_on": "2026-02-02",
+            "still_on_page": true
+          },
+          {
+            "domain": "speakoutcny.org",
+            "uri": "https://speakoutcny.org/news/new-social-media-campaign-highlights-impact-of-tenneys-katkos-votes",
+            "extracted_on": "2019-09-03",
+            "last_seen_on": "2025-11-23",
+            "still_on_page": true
+          },
+          {
+            "domain": "nytimes.com",
+            "uri": "https://nytimes.com/by/vivian-yee",
+            "extracted_on": "2024-12-18",
+            "last_seen_on": "2025-09-19",
+            "still_on_page": false
+          }
+        ]
+      },
+      {
+        "email": "deborah.dunn@nytimes.com",
+        "name": "Deborah Dunn",
+        "position": "Director of Features",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 3,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20deborah%20dunn%20nytimes",
+            "extracted_on": "2025-01-13",
+            "last_seen_on": "2026-02-05",
+            "still_on_page": true
+          },
+          {
+            "domain": "nytimes.com",
+            "uri": "https://nytimes.com/2025/03/10/t-magazine/summer-travel-vacation-help.html",
+            "extracted_on": "2025-03-18",
+            "last_seen_on": "2026-01-22",
+            "still_on_page": true
+          },
+          {
+            "domain": "nytimes.com",
+            "uri": "https://nytimes.com/2025/09/05/t-magazine/winter-holidays-travel-vacation-questions.html",
+            "extracted_on": "2025-09-19",
+            "last_seen_on": "2025-09-19",
+            "still_on_page": true
+          }
+        ]
+      }
+    ],
+    "all_contacts": [
+      {
+        "email": "duenes@nytimes.com",
+        "name": "Steve Duenes",
+        "position": "Creative Director",
+        "department": "design",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 10,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "webserver.lemoyne.edu",
+            "uri": "https://webserver.lemoyne.edu/hsu/internship.htm",
+            "extracted_on": "2017-10-23",
+            "last_seen_on": "2026-02-09",
+            "still_on_page": true
+          },
+          {
+            "domain": "web.lemoyne.edu",
+            "uri": "https://web.lemoyne.edu/~hsu/internship.htm",
+            "extracted_on": "2015-01-28",
+            "last_seen_on": "2026-01-30",
+            "still_on_page": true
+          },
+          {
+            "domain": "web2.lemoyne.edu",
+            "uri": "https://web2.lemoyne.edu/hsu/internship.htm",
+            "extracted_on": "2017-10-29",
+            "last_seen_on": "2026-01-24",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "vivian.yee@nytimes.com",
+        "name": "Vivian Yee",
+        "position": "Bureau Chief",
+        "department": "executive",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 9,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20vivian%20yee%20nytimes",
+            "extracted_on": "2025-01-13",
+            "last_seen_on": "2026-02-02",
+            "still_on_page": true
+          },
+          {
+            "domain": "speakoutcny.org",
+            "uri": "https://speakoutcny.org/news/new-social-media-campaign-highlights-impact-of-tenneys-katkos-votes",
+            "extracted_on": "2019-09-03",
+            "last_seen_on": "2025-11-23",
+            "still_on_page": true
+          },
+          {
+            "domain": "nytimes.com",
+            "uri": "https://nytimes.com/by/vivian-yee",
+            "extracted_on": "2024-12-18",
+            "last_seen_on": "2025-09-19",
+            "still_on_page": false
+          }
+        ]
+      },
+      {
+        "email": "deborah.dunn@nytimes.com",
+        "name": "Deborah Dunn",
+        "position": "Director of Features",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 3,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20deborah%20dunn%20nytimes",
+            "extracted_on": "2025-01-13",
+            "last_seen_on": "2026-02-05",
+            "still_on_page": true
+          },
+          {
+            "domain": "nytimes.com",
+            "uri": "https://nytimes.com/2025/03/10/t-magazine/summer-travel-vacation-help.html",
+            "extracted_on": "2025-03-18",
+            "last_seen_on": "2026-01-22",
+            "still_on_page": true
+          },
+          {
+            "domain": "nytimes.com",
+            "uri": "https://nytimes.com/2025/09/05/t-magazine/winter-holidays-travel-vacation-questions.html",
+            "extracted_on": "2025-09-19",
+            "last_seen_on": "2025-09-19",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "leslie.glotzer@nytimes.com",
+        "name": "Leslie Glotzer",
+        "position": "Director of Strategy",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20leslie%20glotzer%20nytimes",
+            "extracted_on": "2025-11-14",
+            "last_seen_on": "2026-02-09",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "kruti.shah@nytimes.com",
+        "name": "Kruti Shah",
+        "position": "Director",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20kruti%20shah%20nytimes",
+            "extracted_on": "2025-10-05",
+            "last_seen_on": "2026-02-09",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "daniel.alesi@nytimes.com",
+        "name": "Daniel Alesi",
+        "position": "Director of Product Support",
+        "department": "support",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20daniel%20alesi%20nytimes",
+            "extracted_on": "2025-08-22",
+            "last_seen_on": "2026-02-03",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "ana.serro@nytimes.com",
+        "name": "Ana Sêrro",
+        "position": "Art Director",
+        "department": "design",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20ana%20s%C3%AArro%20nytimes",
+            "extracted_on": "2025-08-21",
+            "last_seen_on": "2026-02-07",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "amy.gannon@nytimes.com",
+        "name": "Amy Gannon",
+        "position": "Associate Director",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20amy%20gannon%20nytimes",
+            "extracted_on": "2025-08-21",
+            "last_seen_on": "2026-02-06",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "dana.chang@nytimes.com",
+        "name": "Dana Chang",
+        "position": "Creative Director",
+        "department": "design",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20dana%20chang%20nytimes",
+            "extracted_on": "2025-08-18",
+            "last_seen_on": "2026-02-09",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "johanna.barr@nytimes.com",
+        "name": "Johanna Barr",
+        "position": "News Director",
+        "department": "communication",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20johanna%20barr%20nytimes",
+            "extracted_on": "2025-08-18",
+            "last_seen_on": "2025-12-29",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "jacqueline.bates@nytimes.com",
+        "name": "Jacqueline Bates",
+        "position": "Photography Director",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20jacqueline%20bates%20nytimes",
+            "extracted_on": "2025-08-18",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "julie.snyder@nytimes.com",
+        "name": "Julie Snyder",
+        "position": "Executive Editor",
+        "department": "communication",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20julie%20snyder%20nytimes",
+            "extracted_on": "2025-08-13",
+            "last_seen_on": "2026-02-08",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "keisha.thom@nytimes.com",
+        "name": "Keisha Thom",
+        "position": "Compensation Director",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20keisha%20thom%20nytimes",
+            "extracted_on": "2025-08-08",
+            "last_seen_on": "2025-08-08",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "cydney.mitchell@nytimes.com",
+        "name": "Cydney Mitchell",
+        "position": "Director of Product Management",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20cydney%20mitchell%20nytimes",
+            "extracted_on": "2025-07-10",
+            "last_seen_on": "2026-01-30",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "lyla.wilton@nytimes.com",
+        "name": "Lyla Wilton",
+        "position": "Director of Marketing",
+        "department": "marketing",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20lyla%20wilton%20nytimes",
+            "extracted_on": "2025-07-06",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "ella.vance@nytimes.com",
+        "name": "Ella Vance",
+        "position": "Director of Production",
+        "department": "operations",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20ella%20vance%20nytimes",
+            "extracted_on": "2025-07-02",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "keith.webb@nytimes.com",
+        "name": "Keith Webb",
+        "position": "Art Director",
+        "department": "design",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20keith%20webb%20nytimes",
+            "extracted_on": "2025-01-14",
+            "last_seen_on": "2025-01-14",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "shawn.bower@nytimes.com",
+        "name": "Shawn Bower",
+        "position": "Chief Information Security Officer",
+        "department": "it",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20shawn%20bower%20nytimes",
+            "extracted_on": "2025-01-14",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "paul.jean@nytimes.com",
+        "name": "Paul Jean",
+        "position": "Art Director",
+        "department": "design",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20paul%20jean%20nytimes",
+            "extracted_on": "2025-01-14",
+            "last_seen_on": "2026-01-31",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "erica.super@nytimes.com",
+        "name": "Erica Super",
+        "position": "Associate Director, Advertising",
+        "department": "marketing",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20erica%20super%20nytimes",
+            "extracted_on": "2025-01-14",
+            "last_seen_on": "2026-02-02",
+            "still_on_page": true
+          }
+        ]
+      }
+    ],
+    "scraped_at": "2026-02-10 20:25:45",
+    "success": true,
+    "line_number": 518,
+    "source_line": "nytimes"
+  },
+  {
+    "company": "usatoday",
+    "domain": "usatoday.com",
+    "organization": "USA TODAY",
+    "total_contacts_found": 34,
+    "decision_makers_found": 33,
+    "top_contacts": [
+      {
+        "email": "mhoerr@usatoday.com",
+        "name": "Madalyn Hoerr",
+        "position": "Director of Platforms",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20madalyn%20hoerr%20usatoday",
+            "extracted_on": "2025-08-01",
+            "last_seen_on": "2026-02-01",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "vbravo@usatoday.com",
+        "name": "Veronica Bravo",
+        "position": "Art Director",
+        "department": "design",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20veronica%20bravo%20usatoday",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-01-28",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "gshea@usatoday.com",
+        "name": "Greg Shea",
+        "position": "Warehouse Manager",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20greg%20shea%20usatoday",
+            "extracted_on": "2026-02-03",
+            "last_seen_on": "2026-02-04",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "gatkinson@usatoday.com",
+        "name": "Gayle Atkinson",
+        "position": "Recruitment Specialist",
+        "department": "hr",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 1,
+        "is_decision_maker": false,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20gayle%20atkinson%20usatoday",
+            "extracted_on": "2025-12-17",
+            "last_seen_on": "2026-02-09",
+            "still_on_page": true
+          }
+        ]
+      }
+    ],
+    "all_contacts": [
+      {
+        "email": "mhoerr@usatoday.com",
+        "name": "Madalyn Hoerr",
+        "position": "Director of Platforms",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20madalyn%20hoerr%20usatoday",
+            "extracted_on": "2025-08-01",
+            "last_seen_on": "2026-02-01",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "vbravo@usatoday.com",
+        "name": "Veronica Bravo",
+        "position": "Art Director",
+        "department": "design",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20veronica%20bravo%20usatoday",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-01-28",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "gshea@usatoday.com",
+        "name": "Greg Shea",
+        "position": "Warehouse Manager",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20greg%20shea%20usatoday",
+            "extracted_on": "2026-02-03",
+            "last_seen_on": "2026-02-04",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "ddonald@usatoday.com",
+        "name": "Dominick Donald",
+        "position": "Military Officer",
+        "department": "executive",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20dominick%20donald%20usatoday",
+            "extracted_on": "2026-02-02",
+            "last_seen_on": "2026-02-01",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "rpolisano@usatoday.com",
+        "name": "Regina Polisano",
+        "position": "Operations Manager",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20regina%20polisano%20usatoday",
+            "extracted_on": "2026-01-31",
+            "last_seen_on": "2026-02-01",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "cpowers@usatoday.com",
+        "name": "Christopher Powers",
+        "position": "Senior Manager",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20christopher%20powers%20usatoday",
+            "extracted_on": "2026-01-31",
+            "last_seen_on": "2026-01-30",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "nbrown@usatoday.com",
+        "name": "Nancy Brown",
+        "position": "Administrative Assistant",
+        "department": "operations",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20nancy%20brown%20usatoday",
+            "extracted_on": "2026-01-25",
+            "last_seen_on": "2026-01-29",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "kellison@usatoday.com",
+        "name": "Kamile Ellison",
+        "position": "Project Manager",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20kamile%20ellison%20usatoday",
+            "extracted_on": "2026-01-19",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "jdash@usatoday.com",
+        "name": "Joe Dash",
+        "position": "Business Manager",
+        "department": "sales",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20joe%20dash%20usatoday",
+            "extracted_on": "2026-01-15",
+            "last_seen_on": "2026-01-28",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "wlewis@usatoday.com",
+        "name": "Will Lewis",
+        "position": "Contractor",
+        "department": "",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20will%20lewis%20usatoday",
+            "extracted_on": "2026-01-15",
+            "last_seen_on": "2026-02-05",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "lgodwin@usatoday.com",
+        "name": "Linda Godwin",
+        "position": "Real Estate",
+        "department": "sales",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20linda%20godwin%20usatoday",
+            "extracted_on": "2026-01-13",
+            "last_seen_on": "2026-02-03",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "jlemus@usatoday.com",
+        "name": "Jaime Lemus",
+        "position": "Ad Operations Specialist",
+        "department": "operations",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20jaime%20lemus%20usatoday",
+            "extracted_on": "2026-01-12",
+            "last_seen_on": "2026-02-06",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "clongo@usatoday.com",
+        "name": "Cirstian Longo",
+        "position": "Manager",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20cirstian%20longo%20usatoday",
+            "extracted_on": "2026-01-07",
+            "last_seen_on": "2026-02-06",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "ssnead@usatoday.com",
+        "name": "Sam Snead",
+        "position": "Manager",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20sam%20snead%20usatoday",
+            "extracted_on": "2026-01-03",
+            "last_seen_on": "2026-02-04",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "bhildebrand@usatoday.com",
+        "name": "Bill Hildebrand",
+        "position": "Circulation Manager",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20bill%20hildebrand%20usatoday",
+            "extracted_on": "2026-01-03",
+            "last_seen_on": "2026-01-30",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "jwilliford@usatoday.com",
+        "name": "John Williford",
+        "position": "Independent Contractor",
+        "department": "",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20john%20williford%20usatoday",
+            "extracted_on": "2025-12-30",
+            "last_seen_on": "2026-01-31",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "darroyo@usatoday.com",
+        "name": "Danyell Arroyo",
+        "position": "Case Manager",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20danyell%20arroyo%20usatoday",
+            "extracted_on": "2025-12-27",
+            "last_seen_on": "2026-02-03",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "ehillard@usatoday.com",
+        "name": "Earl Hillard",
+        "position": "Manager",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20earl%20hillard%20usatoday",
+            "extracted_on": "2025-12-25",
+            "last_seen_on": "2026-02-09",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "aali@usatoday.com",
+        "name": "Abid Ali",
+        "position": "Sales Manager",
+        "department": "sales",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20abid%20ali%20usatoday",
+            "extracted_on": "2025-12-25",
+            "last_seen_on": "2026-02-02",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "uanwar@usatoday.com",
+        "name": "Usman Anwar",
+        "position": "Project Manager",
+        "department": "management",
+        "confidence": 94,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20usman%20anwar%20usatoday",
+            "extracted_on": "2025-12-20",
+            "last_seen_on": "2026-01-26",
+            "still_on_page": true
+          }
+        ]
+      }
+    ],
+    "scraped_at": "2026-02-10 20:25:48",
+    "success": true,
+    "line_number": 519,
+    "source_line": "usatoday"
+  },
+  {
+    "company": "washingtonpost",
+    "domain": "washingtonpost.com",
+    "organization": "The Washington Post",
+    "total_contacts_found": 91,
+    "decision_makers_found": 91,
+    "top_contacts": [
+      {
+        "email": "sudarsan.raghavan@washingtonpost.com",
+        "name": "Sudarsan Raghavan",
+        "position": "Bureau Chief",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 2,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20sudarsan%20raghavan%20washingtonpost",
+            "extracted_on": "2025-01-09",
+            "last_seen_on": "2026-01-28",
+            "still_on_page": true
+          },
+          {
+            "domain": "washingtonpost.com",
+            "uri": "https://www.washingtonpost.com/people/sudarsan-raghavan/",
+            "extracted_on": "2024-11-29",
+            "last_seen_on": "2024-11-29",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "matt.murray@washingtonpost.com",
+        "name": "Matt Murray",
+        "position": "Executive Editor",
+        "department": "communication",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20matt%20murray%20washingtonpost",
+            "extracted_on": "2025-08-20",
+            "last_seen_on": "2026-02-06",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "marissa.vonesh@washingtonpost.com",
+        "name": "Marissa Vonesh",
+        "position": "Art Director",
+        "department": "design",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20marissa%20vonesh%20washingtonpost",
+            "extracted_on": "2025-08-17",
+            "last_seen_on": "2026-02-01",
+            "still_on_page": true
+          }
+        ]
+      }
+    ],
+    "all_contacts": [
+      {
+        "email": "sudarsan.raghavan@washingtonpost.com",
+        "name": "Sudarsan Raghavan",
+        "position": "Bureau Chief",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 2,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20sudarsan%20raghavan%20washingtonpost",
+            "extracted_on": "2025-01-09",
+            "last_seen_on": "2026-01-28",
+            "still_on_page": true
+          },
+          {
+            "domain": "washingtonpost.com",
+            "uri": "https://www.washingtonpost.com/people/sudarsan-raghavan/",
+            "extracted_on": "2024-11-29",
+            "last_seen_on": "2024-11-29",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "matt.murray@washingtonpost.com",
+        "name": "Matt Murray",
+        "position": "Executive Editor",
+        "department": "communication",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20matt%20murray%20washingtonpost",
+            "extracted_on": "2025-08-20",
+            "last_seen_on": "2026-02-06",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "marissa.vonesh@washingtonpost.com",
+        "name": "Marissa Vonesh",
+        "position": "Art Director",
+        "department": "design",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20marissa%20vonesh%20washingtonpost",
+            "extracted_on": "2025-08-17",
+            "last_seen_on": "2026-02-01",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "meghan.hoyer@washingtonpost.com",
+        "name": "Meghan Hoyer",
+        "position": "Director of Data Journalism",
+        "department": "it",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20meghan%20hoyer%20washingtonpost",
+            "extracted_on": "2025-08-16",
+            "last_seen_on": "2026-01-06",
+            "still_on_page": false
+          }
+        ]
+      },
+      {
+        "email": "keely.diven@washingtonpost.com",
+        "name": "Keely Diven",
+        "position": "Social Media Director",
+        "department": "communication",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20keely%20diven%20washingtonpost",
+            "extracted_on": "2025-08-15",
+            "last_seen_on": "2025-12-30",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "jason.taylor@washingtonpost.com",
+        "name": "Jason Taylor",
+        "position": "Vice President of Technology",
+        "department": "it",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20jason%20taylor%20washingtonpost",
+            "extracted_on": "2025-08-13",
+            "last_seen_on": "2025-08-13",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "reem.akkad@washingtonpost.com",
+        "name": "Reem Akkad",
+        "position": "Deputy Head of Visuals",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20reem%20akkad%20washingtonpost",
+            "extracted_on": "2025-08-08",
+            "last_seen_on": "2026-01-02",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "sandra.stevenson@washingtonpost.com",
+        "name": "Sandra Stevenson",
+        "position": "Director of Photography",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20sandra%20stevenson%20washingtonpost",
+            "extracted_on": "2025-05-08",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "harry.king@washingtonpost.com",
+        "name": "Harry King",
+        "position": "Head of Sales",
+        "department": "sales",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20harry%20king%20washingtonpost",
+            "extracted_on": "2025-05-05",
+            "last_seen_on": "2026-02-02",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "bailey.kattleman@washingtonpost.com",
+        "name": "Bailey Kattleman",
+        "position": "Director of Product",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20bailey%20kattleman%20washingtonpost",
+            "extracted_on": "2025-05-03",
+            "last_seen_on": "2025-05-03",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "joan.branham@washingtonpost.com",
+        "name": "Joan Branham",
+        "position": "Director of Engineering",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20joan%20branham%20washingtonpost",
+            "extracted_on": "2025-02-20",
+            "last_seen_on": "2026-02-03",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "jill.lubochinski@washingtonpost.com",
+        "name": "Jill Lubochinski",
+        "position": "Senior Director, Partnerships",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20jill%20lubochinski%20washingtonpost",
+            "extracted_on": "2025-02-28",
+            "last_seen_on": "2026-02-05",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "conrad.rehill@washingtonpost.com",
+        "name": "Conrad Rehill",
+        "position": "Director of Engineering",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20conrad%20rehill%20washingtonpost",
+            "extracted_on": "2025-01-12",
+            "last_seen_on": "2025-01-12",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "dudley.brooks@washingtonpost.com",
+        "name": "Dudley Brooks",
+        "position": "Deputy Director of Photography",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20dudley%20brooks%20washingtonpost",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-02-07",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "stephen.erickson@washingtonpost.com",
+        "name": "Stephen Erickson",
+        "position": "Director of Engineering",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20stephen%20erickson%20washingtonpost",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-02-05",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "ernesto.lopez@washingtonpost.com",
+        "name": "Ernesto Lopez",
+        "position": "Associate Director, Subscriber Acquisition",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20ernesto%20lopez%20washingtonpost",
+            "extracted_on": "2025-08-06",
+            "last_seen_on": "2026-01-26",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "olivia.petersen@washingtonpost.com",
+        "name": "Olivia Petersen",
+        "position": "Vice President of Public Relations",
+        "department": "communication",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20olivia%20petersen%20washingtonpost",
+            "extracted_on": "2025-01-10",
+            "last_seen_on": "2026-02-08",
+            "still_on_page": false
+          }
+        ]
+      },
+      {
+        "email": "eileen.hogan@washingtonpost.com",
+        "name": "Eileen Hogan",
+        "position": "Director of Finance",
+        "department": "finance",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20eileen%20hogan%20washingtonpost",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-02-07",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "teia.marshall@washingtonpost.com",
+        "name": "Teia Marshall",
+        "position": "Advertising Director",
+        "department": "marketing",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20teia%20marshall%20washingtonpost",
+            "extracted_on": "2025-01-10",
+            "last_seen_on": "2026-01-29",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "danny.zeng@washingtonpost.com",
+        "name": "Danny Zeng",
+        "position": "Senior Director of Financial Planning and Analysis",
+        "department": "finance",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20danny%20zeng%20washingtonpost",
+            "extracted_on": "2025-01-10",
+            "last_seen_on": "2026-01-29",
+            "still_on_page": true
+          }
+        ]
+      }
+    ],
+    "scraped_at": "2026-02-10 20:25:51",
+    "success": true,
+    "line_number": 520,
+    "source_line": "washingtonpost"
+  },
+  {
+    "company": "wsj",
+    "domain": "wsj.com",
+    "organization": "The Wall Street Journal",
+    "total_contacts_found": 89,
+    "decision_makers_found": 89,
+    "top_contacts": [
+      {
+        "email": "santiago.perez@wsj.com",
+        "name": "Santiago Pérez",
+        "position": "Bureau Chief",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "foxbusiness.com",
+            "uri": "https://foxbusiness.com/features/2017/11/22/why-your-flat-screen-tv-would-cost-more-if-nafta-ends.html",
+            "extracted_on": "2018-01-06",
+            "last_seen_on": "2026-02-09",
+            "still_on_page": true
+          },
+          {
+            "domain": "channelmeimei.com",
+            "uri": "https://channelmeimei.com/volcanic-eruption-in-guatemala-kills-dozens",
+            "extracted_on": "2019-03-04",
+            "last_seen_on": "2026-01-22",
+            "still_on_page": true
+          },
+          {
+            "domain": "foxbusiness.com",
+            "uri": "https://foxbusiness.com/features/argentina-relaxes-key-inflation-targets",
+            "extracted_on": "2018-07-05",
+            "last_seen_on": "2025-11-21",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "ben.eisen@wsj.com",
+        "name": "Ben Eisen",
+        "position": "Bureau Chief",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20ben%20eisen%20wsj",
+            "extracted_on": "2025-01-09",
+            "last_seen_on": "2026-02-08",
+            "still_on_page": true
+          },
+          {
+            "domain": "foxbusiness.com",
+            "uri": "https://foxbusiness.com/features/tech-stocks-surge-into-new-year-wsj",
+            "extracted_on": "2019-03-16",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          },
+          {
+            "domain": "socialismocriativo.com.br",
+            "uri": "https://socialismocriativo.com.br/investidores-tecnologicos-se-preparam-para-dizer-adeus-ao-facebook-google",
+            "extracted_on": "2019-03-22",
+            "last_seen_on": "2026-01-18",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "janet.adamy@wsj.com",
+        "name": "Janet Adamy",
+        "position": "Deputy Chief",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "foxbusiness.com",
+            "uri": "https://foxbusiness.com/features/2017/05/26/rural-america-is-new-inner-city-2.html",
+            "extracted_on": "2026-02-05",
+            "last_seen_on": "2026-02-05",
+            "still_on_page": true
+          },
+          {
+            "domain": "jerryslinks.blogspot.com",
+            "uri": "https://jerryslinks.blogspot.com/2007/07",
+            "extracted_on": "2019-03-21",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          },
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20janet%20adamy%20wsj",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          }
+        ]
+      }
+    ],
+    "all_contacts": [
+      {
+        "email": "santiago.perez@wsj.com",
+        "name": "Santiago Pérez",
+        "position": "Bureau Chief",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "foxbusiness.com",
+            "uri": "https://foxbusiness.com/features/2017/11/22/why-your-flat-screen-tv-would-cost-more-if-nafta-ends.html",
+            "extracted_on": "2018-01-06",
+            "last_seen_on": "2026-02-09",
+            "still_on_page": true
+          },
+          {
+            "domain": "channelmeimei.com",
+            "uri": "https://channelmeimei.com/volcanic-eruption-in-guatemala-kills-dozens",
+            "extracted_on": "2019-03-04",
+            "last_seen_on": "2026-01-22",
+            "still_on_page": true
+          },
+          {
+            "domain": "foxbusiness.com",
+            "uri": "https://foxbusiness.com/features/argentina-relaxes-key-inflation-targets",
+            "extracted_on": "2018-07-05",
+            "last_seen_on": "2025-11-21",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "ben.eisen@wsj.com",
+        "name": "Ben Eisen",
+        "position": "Bureau Chief",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20ben%20eisen%20wsj",
+            "extracted_on": "2025-01-09",
+            "last_seen_on": "2026-02-08",
+            "still_on_page": true
+          },
+          {
+            "domain": "foxbusiness.com",
+            "uri": "https://foxbusiness.com/features/tech-stocks-surge-into-new-year-wsj",
+            "extracted_on": "2019-03-16",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          },
+          {
+            "domain": "socialismocriativo.com.br",
+            "uri": "https://socialismocriativo.com.br/investidores-tecnologicos-se-preparam-para-dizer-adeus-ao-facebook-google",
+            "extracted_on": "2019-03-22",
+            "last_seen_on": "2026-01-18",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "janet.adamy@wsj.com",
+        "name": "Janet Adamy",
+        "position": "Deputy Chief",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "foxbusiness.com",
+            "uri": "https://foxbusiness.com/features/2017/05/26/rural-america-is-new-inner-city-2.html",
+            "extracted_on": "2026-02-05",
+            "last_seen_on": "2026-02-05",
+            "still_on_page": true
+          },
+          {
+            "domain": "jerryslinks.blogspot.com",
+            "uri": "https://jerryslinks.blogspot.com/2007/07",
+            "extracted_on": "2019-03-21",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          },
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20janet%20adamy%20wsj",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "joe.parkinson@wsj.com",
+        "name": "Joe Parkinson",
+        "position": "Chief Executive Officer",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "charleneaz516.blogspot.com",
+            "uri": "https://charleneaz516.blogspot.com/2014/12/government-to-ordained-ministers.html",
+            "extracted_on": "2018-01-05",
+            "last_seen_on": "2026-01-31",
+            "still_on_page": true
+          },
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20joe%20parkinson%20wsj",
+            "extracted_on": "2025-01-12",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          },
+          {
+            "domain": "turk.org.au",
+            "uri": "https://turk.org.au/wsj-turkeys-spymaster-plots-own-course-on-syria",
+            "extracted_on": "2017-11-17",
+            "last_seen_on": "2025-12-27",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "jonathan.cheng@wsj.com",
+        "name": "Jonathan Cheng",
+        "position": "Bureau Chief",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "remington-work.blogspot.com",
+            "uri": "https://remington-work.blogspot.com/2011_04_01_archive.html",
+            "extracted_on": "2018-08-24",
+            "last_seen_on": "2026-02-08",
+            "still_on_page": true
+          },
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20jonathan%20cheng%20wsj",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-01-24",
+            "still_on_page": true
+          },
+          {
+            "domain": "remington-work.blogspot.com",
+            "uri": "https://remington-work.blogspot.com/2011_03_01_archive.html",
+            "extracted_on": "2018-08-25",
+            "last_seen_on": "2026-01-24",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "caitlin.choi@wsj.com",
+        "name": "Caitlin Choi",
+        "position": "Art Director",
+        "department": "design",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20caitlin%20choi%20wsj",
+            "extracted_on": "2025-08-19",
+            "last_seen_on": "2026-02-04",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "david.bamundo@wsj.com",
+        "name": "David Bamundo",
+        "position": "Art Director",
+        "department": "design",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20david%20bamundo%20wsj",
+            "extracted_on": "2025-01-12",
+            "last_seen_on": "2026-02-08",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "donna.zeolla@wsj.com",
+        "name": "Donna Zeolla",
+        "position": "Associate Director of Finance",
+        "department": "finance",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20donna%20zeolla%20wsj",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-02-04",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "tania.feliz@wsj.com",
+        "name": "Tania Feliz",
+        "position": "Senior Director, Program Management",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20tania%20feliz%20wsj",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-02-04",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "katie.purchase@wsj.com",
+        "name": "Katie Purchase",
+        "position": "Vice President of Technology",
+        "department": "it",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20katie%20purchase%20wsj",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-01-09",
+            "still_on_page": false
+          }
+        ]
+      },
+      {
+        "email": "linda.rubes@wsj.com",
+        "name": "Linda Rubes",
+        "position": "Art Director",
+        "department": "design",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20linda%20rubes%20wsj",
+            "extracted_on": "2025-01-10",
+            "last_seen_on": "2026-02-03",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "sarah.ball@wsj.com",
+        "name": "Sarah Ball",
+        "position": "Editor in Chief",
+        "department": "communication",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20sarah%20ball%20wsj",
+            "extracted_on": "2025-01-10",
+            "last_seen_on": "2026-02-04",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "damian.paletta@wsj.com",
+        "name": "Damian Paletta",
+        "position": "Coverage Chief",
+        "department": "executive",
+        "confidence": 98,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "goodtimesweb.org",
+            "uri": "https://goodtimesweb.org/surveillance/2015/wsj-congress-nsa-spying-powers-jun-2-2015.html",
+            "extracted_on": "2025-05-07",
+            "last_seen_on": "2026-02-08",
+            "still_on_page": true
+          },
+          {
+            "domain": "remington-work.blogspot.com",
+            "uri": "https://remington-work.blogspot.com/2009/02",
+            "extracted_on": "2025-08-07",
+            "last_seen_on": "2026-02-07",
+            "still_on_page": true
+          },
+          {
+            "domain": "remington-work.blogspot.com",
+            "uri": "https://remington-work.blogspot.com/2009_01_01_archive.html",
+            "extracted_on": "2026-02-07",
+            "last_seen_on": "2026-02-07",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "bojan.pancevski@wsj.com",
+        "name": "Bojan Pancevski",
+        "position": "Chief Political Correspondent",
+        "department": "executive",
+        "confidence": 98,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "online-bewerbungsmappe.com",
+            "uri": "https://online-bewerbungsmappe.com/floods-in-germany-leave-at-least-40-dead-dozens-missing-as-rain-deluges-europe.html",
+            "extracted_on": "2025-11-01",
+            "last_seen_on": "2025-11-01",
+            "still_on_page": true
+          },
+          {
+            "domain": "bedminsterchurches.net",
+            "uri": "https://bedminsterchurches.net/floods-in-germany-belgium-leave-more-than-100-dead-as-rescuers-race-to-find-survivors.html",
+            "extracted_on": "2025-11-04",
+            "last_seen_on": "2025-11-04",
+            "still_on_page": true
+          },
+          {
+            "domain": "isgap.org",
+            "uri": "https://isgap.org/post/2023/11/dr-charles-asher-small-and-natan-sharansky-for-the-wall-street-journal",
+            "extracted_on": "2025-11-08",
+            "last_seen_on": "2025-11-08",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "bowdeya.tweh@wsj.com",
+        "name": "Bowdeya Tweh",
+        "position": "Bureau Chief",
+        "department": "executive",
+        "confidence": 98,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "foxbusiness.com",
+            "uri": "https://foxbusiness.com/features/express-scripts-says-it-will-lose-anthem-its-biggest-customer-in-2020",
+            "extracted_on": "2023-10-25",
+            "last_seen_on": "2026-01-30",
+            "still_on_page": true
+          },
+          {
+            "domain": "foxbusiness.com",
+            "uri": "https://foxbusiness.com/features/u-s-manufacturing-output-rises-at-slower-pace-in-november-ihs-markit",
+            "extracted_on": "2020-07-14",
+            "last_seen_on": "2026-01-26",
+            "still_on_page": true
+          },
+          {
+            "domain": "foxbusiness.com",
+            "uri": "https://foxbusiness.com/features/investors-intelligence-poll-bullish-sentiment-continues-slide",
+            "extracted_on": "2023-12-27",
+            "last_seen_on": "2025-12-27",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "michael.amon@wsj.com",
+        "name": "Michael Amon",
+        "position": "Deputy Chief",
+        "department": "executive",
+        "confidence": 98,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "marketwatch.com",
+            "uri": "https://marketwatch.com/story/bp-swings-to-profit-but-2010-spill-still-a-drag-2017-08-01",
+            "extracted_on": "2022-08-20",
+            "last_seen_on": "2023-09-25",
+            "still_on_page": true
+          },
+          {
+            "domain": "marketwatch.com",
+            "uri": "https://marketwatch.com/story/bp-swings-to-profit-but-2010-oil-spill-takes-toll-2017-08-01",
+            "extracted_on": "2018-11-03",
+            "last_seen_on": "2023-10-07",
+            "still_on_page": true
+          },
+          {
+            "domain": "foxbusiness.com",
+            "uri": "https://foxbusiness.com/features/shell-to-pay-its-dividend-in-cash-in-latest-sign-of-health-for-big-oil",
+            "extracted_on": "2019-09-01",
+            "last_seen_on": "2025-11-12",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "thomas.loftus@wsj.com",
+        "name": "Thomas Loftus",
+        "position": "Deputy Bureau Chief",
+        "department": "executive",
+        "confidence": 98,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "thec10.com",
+            "uri": "https://thec10.com/summer-reading-for-tech-leaders.html",
+            "extracted_on": "2023-03-12",
+            "last_seen_on": "2026-01-16",
+            "still_on_page": true
+          },
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20thomas%20loftus%20wsj",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-01-05",
+            "still_on_page": false
+          },
+          {
+            "domain": "omniversefuture.com",
+            "uri": "https://omniversefuture.com/summer-season-studying-for-tech-leaders.html",
+            "extracted_on": "2024-01-04",
+            "last_seen_on": "2025-10-05",
+            "still_on_page": false
+          }
+        ]
+      },
+      {
+        "email": "dan.michaels@wsj.com",
+        "name": "Dan Michaels",
+        "position": "Bureau Chief",
+        "department": "executive",
+        "confidence": 98,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "nassauotb.blogspot.com",
+            "uri": "https://nassauotb.blogspot.com/2017/08/irsnisns-and-nirth-koreans-teach-trump.html",
+            "extracted_on": "2017-09-03",
+            "last_seen_on": "2025-11-11",
+            "still_on_page": true
+          },
+          {
+            "domain": "marketwatch.com",
+            "uri": "https://marketwatch.com/story/the-high-tech-low-cost-world-of-tunnel-building-2016-05-10",
+            "extracted_on": "2017-10-19",
+            "last_seen_on": "2023-12-06",
+            "still_on_page": true
+          },
+          {
+            "domain": "marketwatch.com",
+            "uri": "https://marketwatch.com/story/fresenius-net-profit-rises-despite-fx-pressure-2014-07-31",
+            "extracted_on": "2015-01-30",
+            "last_seen_on": "2022-06-25",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "vanessa.fuhrmans@wsj.com",
+        "name": "Vanessa Fuhrmans",
+        "position": "Bureau Chief",
+        "department": "executive",
+        "confidence": 98,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "horizonparentstruth.blogspot.com",
+            "uri": "https://horizonparentstruth.blogspot.com/2011/06",
+            "extracted_on": "2019-03-04",
+            "last_seen_on": "2026-02-03",
+            "still_on_page": true
+          },
+          {
+            "domain": "magnoliascienceacademy.blogspot.com",
+            "uri": "https://magnoliascienceacademy.blogspot.com/2011/06",
+            "extracted_on": "2019-10-27",
+            "last_seen_on": "2026-01-30",
+            "still_on_page": true
+          },
+          {
+            "domain": "cquestor.blogspot.com",
+            "uri": "https://cquestor.blogspot.com/2009_09_26_archive.html",
+            "extracted_on": "2018-08-25",
+            "last_seen_on": "2026-01-24",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "shayndi.raice@wsj.com",
+        "name": "Shayndi Raice",
+        "position": "Deputy Bureau Chief",
+        "department": "executive",
+        "confidence": 98,
+        "type": "personal",
+        "source_count": 30,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20shayndi%20raice%20wsj",
+            "extracted_on": "2025-01-09",
+            "last_seen_on": "2026-01-31",
+            "still_on_page": true
+          },
+          {
+            "domain": "foxbusiness.com",
+            "uri": "https://foxbusiness.com/features/in-cities-with-low-unemployment-wages-finally-start-to-get-bigger",
+            "extracted_on": "2020-06-26",
+            "last_seen_on": "2026-01-28",
+            "still_on_page": true
+          },
+          {
+            "domain": "targetadvisor.com.br",
+            "uri": "https://targetadvisor.com.br/noticias/2016-deve-repetir-boom-de-fusoes-e-aquisicoes-do-ano-passado",
+            "extracted_on": "2022-07-19",
+            "last_seen_on": "2026-01-22",
+            "still_on_page": true
+          }
+        ]
+      }
+    ],
+    "scraped_at": "2026-02-10 20:25:54",
+    "success": true,
+    "line_number": 521,
+    "source_line": "wsj"
+  },
+  {
+    "company": "bloomberg",
+    "domain": "bloomberg.com",
+    "organization": "Bloomberg",
+    "total_contacts_found": 68,
+    "decision_makers_found": 68,
+    "top_contacts": [
+      {
+        "email": "spermatasari@bloomberg.com",
+        "name": "Soraya Permatasari",
+        "position": "Executive Producer",
+        "department": "design",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20soraya%20permatasari%20bloomberg",
+            "extracted_on": "2025-08-12",
+            "last_seen_on": "2026-02-01",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "jfleary@bloomberg.com",
+        "name": "Jordan Fleary",
+        "position": "HR Business Partner",
+        "department": "sales",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20jordan%20fleary%20bloomberg",
+            "extracted_on": "2025-08-05",
+            "last_seen_on": "2026-01-29",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "gsycip@bloomberg.com",
+        "name": "George Sycip",
+        "position": "Chief Operating Officer",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20george%20sycip%20bloomberg",
+            "extracted_on": "2025-07-05",
+            "last_seen_on": "2026-01-30",
+            "still_on_page": true
+          }
+        ]
+      }
+    ],
+    "all_contacts": [
+      {
+        "email": "spermatasari@bloomberg.com",
+        "name": "Soraya Permatasari",
+        "position": "Executive Producer",
+        "department": "design",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20soraya%20permatasari%20bloomberg",
+            "extracted_on": "2025-08-12",
+            "last_seen_on": "2026-02-01",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "jfleary@bloomberg.com",
+        "name": "Jordan Fleary",
+        "position": "HR Business Partner",
+        "department": "sales",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20jordan%20fleary%20bloomberg",
+            "extracted_on": "2025-08-05",
+            "last_seen_on": "2026-01-29",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "gsycip@bloomberg.com",
+        "name": "George Sycip",
+        "position": "Chief Operating Officer",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20george%20sycip%20bloomberg",
+            "extracted_on": "2025-07-05",
+            "last_seen_on": "2026-01-30",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "ccotzias@bloomberg.com",
+        "name": "Constantin Cotzias",
+        "position": "Director",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20constantin%20cotzias%20bloomberg",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-01-29",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "pchiu@bloomberg.com",
+        "name": "Peter Chiu",
+        "position": "Director of HR Technology",
+        "department": "it",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20peter%20chiu%20bloomberg",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "laurachapman@bloomberg.com",
+        "name": "Laura Chapman",
+        "position": "Broadcast Manager",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20laura%20chapman%20bloomberg",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-02-05",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "bkafri@bloomberg.com",
+        "name": "Benjamin Kafri",
+        "position": "Head of Innovation",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20benjamin%20kafri%20bloomberg",
+            "extracted_on": "2025-01-10",
+            "last_seen_on": "2026-01-26",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "mwinkler@bloomberg.com",
+        "name": "Matt Winkler",
+        "position": "Editor-in-Chief",
+        "department": "",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20matt%20winkler%20bloomberg",
+            "extracted_on": "2025-01-10",
+            "last_seen_on": "2026-01-04",
+            "still_on_page": false
+          }
+        ]
+      },
+      {
+        "email": "yokoshi@bloomberg.com",
+        "name": "Yuko Okoshi",
+        "position": "HR Business Partner",
+        "department": "sales",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20yuko%20okoshi%20bloomberg",
+            "extracted_on": "2025-01-10",
+            "last_seen_on": "2026-01-24",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "talexander@bloomberg.com",
+        "name": "Alexander Turner",
+        "position": "Head of Financial Solutions",
+        "department": "finance",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20alexander%20turner%20bloomberg",
+            "extracted_on": "2025-01-09",
+            "last_seen_on": "2026-01-04",
+            "still_on_page": false
+          }
+        ]
+      },
+      {
+        "email": "tseal@bloomberg.com",
+        "name": "Thomas Seal",
+        "position": "Bureau Chief",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20thomas%20seal%20bloomberg",
+            "extracted_on": "2025-01-09",
+            "last_seen_on": "2026-01-31",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "dsubramoniam@bloomberg.com",
+        "name": "Dhanya Subramoniam",
+        "position": "Director of Content Acquisition",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20dhanya%20subramoniam%20bloomberg",
+            "extracted_on": "2025-01-09",
+            "last_seen_on": "2026-02-02",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "ksheekey@bloomberg.com",
+        "name": "Kevin Sheekey",
+        "position": "Global Head of External Relations",
+        "department": "communication",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20kevin%20sheekey%20bloomberg",
+            "extracted_on": "2025-01-09",
+            "last_seen_on": "2026-01-02",
+            "still_on_page": false
+          }
+        ]
+      },
+      {
+        "email": "jnocerito@bloomberg.com",
+        "name": "Joe Nocerito",
+        "position": "Director",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20joe%20nocerito%20bloomberg",
+            "extracted_on": "2025-01-09",
+            "last_seen_on": "2026-01-27",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "tgreen@bloomberg.com",
+        "name": "Timothy Green",
+        "position": "Production Manager",
+        "department": "operations",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20timothy%20green%20bloomberg",
+            "extracted_on": "2026-01-01",
+            "last_seen_on": "2026-02-03",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "ctsagaris@bloomberg.com",
+        "name": "Chris Tsagaris",
+        "position": "Enterprise Relationship Manager",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20chris%20tsagaris%20bloomberg",
+            "extracted_on": "2025-07-13",
+            "last_seen_on": "2026-01-29",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "btramo@bloomberg.com",
+        "name": "Benny Tramo",
+        "position": "Workplace Operations Manager",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20benny%20tramo%20bloomberg",
+            "extracted_on": "2025-01-16",
+            "last_seen_on": "2026-01-30",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "jmessina@bloomberg.com",
+        "name": "Jacqueline Messina",
+        "position": "Contract Manager",
+        "department": "management",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20jacqueline%20messina%20bloomberg",
+            "extracted_on": "2025-01-16",
+            "last_seen_on": "2026-01-08",
+            "still_on_page": false
+          }
+        ]
+      },
+      {
+        "email": "alevitt@bloomberg.com",
+        "name": "Arthur Levitt",
+        "position": "Board Member",
+        "department": "executive",
+        "confidence": 99,
+        "type": "personal",
+        "source_count": 1,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "linkedin.com",
+            "uri": "https://www.google.com/search?q=site:linkedin.com%20arthur%20levitt%20bloomberg",
+            "extracted_on": "2025-01-11",
+            "last_seen_on": "2026-02-03",
+            "still_on_page": true
+          }
+        ]
+      },
+      {
+        "email": "ttrippet@bloomberg.com",
+        "name": "Ty Trippet",
+        "position": "Corporate Communications Manager",
+        "department": "communication",
+        "confidence": 98,
+        "type": "personal",
+        "source_count": 6,
+        "priority": 0,
+        "is_decision_maker": true,
+        "verification_sources": [
+          {
+            "domain": "longbeach.gov",
+            "uri": "https://longbeach.gov/press-releases/long-beach-named-as-finalist-in-bloomberg-philanthropies-2021-global-mayors-challenge",
+            "extracted_on": "2022-06-03",
+            "last_seen_on": "2025-12-07",
+            "still_on_page": true
+          },
+          {
+            "domain": "lawdepartmentmanagementblog.com",
+            "uri": "https://lawdepartmentmanagementblog.com/five-partners-from-willkie-farr-gallagher-en-masse-to-join-bloomberg-law-department",
+            "extracted_on": "2018-12-13",
+            "last_seen_on": "2025-03-04",
+            "still_on_page": false
+          },
+          {
+            "domain": "lawdepartmentmanagementblog.com",
+            "uri": "https://lawdepartmentmanagementblog.com/category/thoughtsobservations/page/4",
+            "extracted_on": "2018-08-11",
+            "last_seen_on": "2025-03-02",
+            "still_on_page": false
+          }
+        ]
+      }
+    ],
+    "scraped_at": "2026-02-10 20:25:57",
+    "success": true,
+    "line_number": 522,
+    "source_line": "bloomberg"
+  },
+  {
+    "company": "yahoo.com",
+    "domain": "yahoocom.com",
+    "organization": "Yahoocom.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:25:59",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 523,
+    "source_line": "yahoo.com"
+  },
+  {
+    "company": "businessinsider.com",
+    "domain": "businessinsidercom.com",
+    "organization": "Businessinsidercom.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:26:02",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 524,
+    "source_line": "businessinsider.com"
+  },
+  {
+    "company": "forbes.com",
+    "domain": "forbescom.com",
+    "organization": "Forbescom.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:26:04",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 525,
+    "source_line": "forbes.com"
+  },
+  {
+    "company": "fastcompany.com",
+    "domain": "fastcompanycom.com",
+    "organization": "Fastcompanycom.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:26:07",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 526,
+    "source_line": "fastcompany.com"
+  },
+  {
+    "company": "inc.com",
+    "domain": "inccom.com",
+    "organization": "Inccom.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:26:09",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 527,
+    "source_line": "inc.com"
+  },
+  {
+    "company": "latimes.com",
+    "domain": "latimescom.com",
+    "organization": "Latimescom.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:26:11",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 528,
+    "source_line": "latimes.com"
+  },
+  {
+    "company": "bisnow.com",
+    "domain": "bisnowcom.com",
+    "organization": "Bisnowcom.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:26:14",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 529,
+    "source_line": "bisnow.com"
+  },
+  {
+    "company": "bloomberg.com",
+    "domain": "bloombergcom.com",
+    "organization": "Bloombergcom.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:26:16",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 530,
+    "source_line": "bloomberg.com"
+  },
+  {
+    "company": "cnbc.com",
+    "domain": "cnbccom.com",
+    "organization": "Cnbccom.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:26:18",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 531,
+    "source_line": "cnbc.com"
+  },
+  {
+    "company": "therealdeal.com",
+    "domain": "therealdealcom.com",
+    "organization": "Therealdealcom.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:26:21",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 532,
+    "source_line": "therealdeal.com"
+  },
+  {
+    "company": "inman.com",
+    "domain": "inmancom.com",
+    "organization": "Inmancom.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:26:23",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 533,
+    "source_line": "inman.com"
+  },
+  {
+    "company": "ap.org",
+    "domain": "aporg.com",
+    "organization": "Aporg.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:26:26",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 534,
+    "source_line": "ap.org"
+  },
+  {
+    "company": "reuters.com",
+    "domain": "reuterscom.com",
+    "organization": "Reuterscom.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:26:28",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 535,
+    "source_line": "reuters.com"
+  },
+  {
+    "company": "wsj.com",
+    "domain": "wsjcom.com",
+    "organization": "Wsjcom.Com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 20:26:31",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 536,
+    "source_line": "wsj.com"
+  }
+]

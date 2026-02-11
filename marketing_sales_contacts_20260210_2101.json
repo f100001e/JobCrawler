@@ -1,0 +1,262 @@
+[
+  {
+    "company": "fastcompany.com",
+    "domain": "fastcompanycom.com",
+    "organization": "fastcompany.com",
+    "total_contacts_found": 0,
+    "marketing_sales_contacts": [],
+    "top_marketing_sales_contacts": [],
+    "contact_type_breakdown": {},
+    "scraped_at": "2026-02-10 21:00:57",
+    "success": false,
+    "error": "No marketing/sales contacts found",
+    "line_number": 526,
+    "source_line": "fastcompany.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "fastcompanycom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  },
+  {
+    "company": "inc.com",
+    "domain": "inccom.com",
+    "organization": "inc.com",
+    "total_contacts_found": 0,
+    "marketing_sales_contacts": [],
+    "top_marketing_sales_contacts": [],
+    "contact_type_breakdown": {},
+    "scraped_at": "2026-02-10 21:01:00",
+    "success": false,
+    "error": "No marketing/sales contacts found",
+    "line_number": 527,
+    "source_line": "inc.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "inccom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  },
+  {
+    "company": "latimes.com",
+    "domain": "latimescom.com",
+    "organization": "latimes.com",
+    "total_contacts_found": 0,
+    "marketing_sales_contacts": [],
+    "top_marketing_sales_contacts": [],
+    "contact_type_breakdown": {},
+    "scraped_at": "2026-02-10 21:01:02",
+    "success": false,
+    "error": "No marketing/sales contacts found",
+    "line_number": 528,
+    "source_line": "latimes.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "latimescom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  },
+  {
+    "company": "bisnow.com",
+    "domain": "bisnowcom.com",
+    "organization": "bisnow.com",
+    "total_contacts_found": 0,
+    "marketing_sales_contacts": [],
+    "top_marketing_sales_contacts": [],
+    "contact_type_breakdown": {},
+    "scraped_at": "2026-02-10 21:01:05",
+    "success": false,
+    "error": "No marketing/sales contacts found",
+    "line_number": 529,
+    "source_line": "bisnow.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "bisnowcom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  },
+  {
+    "company": "bloomberg.com",
+    "domain": "bloombergcom.com",
+    "organization": "bloomberg.com",
+    "total_contacts_found": 0,
+    "marketing_sales_contacts": [],
+    "top_marketing_sales_contacts": [],
+    "contact_type_breakdown": {},
+    "scraped_at": "2026-02-10 21:01:07",
+    "success": false,
+    "error": "No marketing/sales contacts found",
+    "line_number": 530,
+    "source_line": "bloomberg.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "bloombergcom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  },
+  {
+    "company": "cnbc.com",
+    "domain": "cnbccom.com",
+    "organization": "cnbc.com",
+    "total_contacts_found": 0,
+    "marketing_sales_contacts": [],
+    "top_marketing_sales_contacts": [],
+    "contact_type_breakdown": {},
+    "scraped_at": "2026-02-10 21:01:10",
+    "success": false,
+    "error": "No marketing/sales contacts found",
+    "line_number": 531,
+    "source_line": "cnbc.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "cnbccom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  },
+  {
+    "company": "therealdeal.com",
+    "domain": "therealdealcom.com",
+    "organization": "therealdeal.com",
+    "total_contacts_found": 0,
+    "marketing_sales_contacts": [],
+    "top_marketing_sales_contacts": [],
+    "contact_type_breakdown": {},
+    "scraped_at": "2026-02-10 21:01:12",
+    "success": false,
+    "error": "No marketing/sales contacts found",
+    "line_number": 532,
+    "source_line": "therealdeal.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "therealdealcom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  },
+  {
+    "company": "inman.com",
+    "domain": "inmancom.com",
+    "organization": "inman.com",
+    "total_contacts_found": 0,
+    "marketing_sales_contacts": [],
+    "top_marketing_sales_contacts": [],
+    "contact_type_breakdown": {},
+    "scraped_at": "2026-02-10 21:01:15",
+    "success": false,
+    "error": "No marketing/sales contacts found",
+    "line_number": 533,
+    "source_line": "inman.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "inmancom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  },
+  {
+    "company": "ap.org",
+    "domain": "aporg.com",
+    "organization": "ap.org",
+    "total_contacts_found": 0,
+    "marketing_sales_contacts": [],
+    "top_marketing_sales_contacts": [],
+    "contact_type_breakdown": {},
+    "scraped_at": "2026-02-10 21:01:17",
+    "success": false,
+    "error": "No marketing/sales contacts found",
+    "line_number": 534,
+    "source_line": "ap.org",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "aporg.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  },
+  {
+    "company": "reuters.com",
+    "domain": "reuterscom.com",
+    "organization": "reuters.com",
+    "total_contacts_found": 0,
+    "marketing_sales_contacts": [],
+    "top_marketing_sales_contacts": [],
+    "contact_type_breakdown": {},
+    "scraped_at": "2026-02-10 21:01:20",
+    "success": false,
+    "error": "No marketing/sales contacts found",
+    "line_number": 535,
+    "source_line": "reuters.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "reuterscom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  }
+]

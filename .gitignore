@@ -35,5 +35,8 @@ EOF
 # Testers
 mail_body_test.py
 diagnose_spam.py
+api_test.py
 
 corporate_mailer_ppla.py
+corporate_crawler_ppla.py
+ppla_run.py

@@ -1,0 +1,80 @@
+[
+  {
+    "company": "bloomberg.com",
+    "domain": "bloombergcom.com",
+    "organization": "bloomberg.com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 21:35:13",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 530,
+    "source_line": "bloomberg.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "bloombergcom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  },
+  {
+    "company": "cnbc.com",
+    "domain": "cnbccom.com",
+    "organization": "cnbc.com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 21:35:15",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 531,
+    "source_line": "cnbc.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "cnbccom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  },
+  {
+    "company": "therealdeal.com",
+    "domain": "therealdealcom.com",
+    "organization": "therealdeal.com",
+    "total_contacts_found": 0,
+    "decision_makers_found": 0,
+    "top_contacts": [],
+    "all_contacts": [],
+    "scraped_at": "2026-02-10 21:35:17",
+    "success": false,
+    "error": "No contacts found",
+    "line_number": 532,
+    "source_line": "therealdeal.com",
+    "hunter_response_metadata": {
+      "results": 0,
+      "limit": 100,
+      "offset": 0,
+      "params": {
+        "domain": "therealdealcom.com",
+        "company": null,
+        "type": null,
+        "seniority": null,
+        "department": null
+      }
+    }
+  }
+]

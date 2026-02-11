@@ -8,6 +8,9 @@ from email.message import EmailMessage
 from pathlib import Path
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+import sys
+import socket
+import argparse
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
@@ -284,7 +287,40 @@ def run_mailer():
                         # Check connection before sending
                         if not test_smtp_connection(server):
                             print("⚠ Connection lost, reconnecting...")
-                            server.ehlo(HELO_DOMAIN)
+                            try:
+                                server.quit()
+                            except:
+                                pass
+
+                            # Recreate the connection from scratch
+                            if '--google-admin' in sys.argv:
+                                # Force IPv4 connection
+                                addrinfos = socket.getaddrinfo(
+                                    SMTP_HOST, SMTP_PORT,
+                                    # SMTP_HOST is already the IPv4 address from run_google_admin_ipv4()
+                                    socket.AF_INET,
+                                    socket.SOCK_STREAM
+                                )
+                                ip, port = addrinfos[0][4][0], addrinfos[0][4][1]
+
+                                ipv4_ctx = ssl.create_default_context()
+                                ipv4_ctx.check_hostname = False
+                                ipv4_ctx.verify_mode = ssl.CERT_NONE
+
+                                server = smtplib.SMTP(ip, port, timeout=30)
+                                server.ehlo(HELO_DOMAIN)
+                                server.starttls(context=ipv4_ctx)
+                                server.ehlo(HELO_DOMAIN)
+                            else:
+                                # Normal reconnect
+                                server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
+                                server.ehlo(HELO_DOMAIN)
+                                server.starttls(context=ssl.create_default_context())
+                                server.ehlo(HELO_DOMAIN)
+
+                            # Re-authenticate if needed
+                            if not WHITELIST_MODE and SMTP_USER and SMTP_PASS:
+                                server.login(SMTP_USER, SMTP_PASS)
 
                         server.send_message(msg)
 
@@ -357,15 +393,131 @@ def run_google_admin_ipv4():
     import os
     os.environ["SMTP_HOST"] = ip  # Temporarily override
 
+    # 🔴 CRITICAL: Add the flag so run_mailer() knows to use IPv4 mode
+    if '--google-admin' not in sys.argv:
+        sys.argv.append('--google-admin')
+
     # Now run the normal mailer but with IPv4 host
     run_mailer()
 
 
-if __name__ == "__main__":
-    import sys
+def send_test_email(test_email):
+    """Send a single test email using forced IPv4 to check deliverability"""
+    print(f"\n{'=' * 60}")
+    print(f"📧 TEST MODE: Sending single test email")
+    print(f"{'=' * 60}")
+    print(f"To: {test_email}")
+    print(f"From: {FROM_EMAIL}")
+    print(f"Resume: {RESUME_PATH}")
+    print(f"{'=' * 60}\n")
 
-    if len(sys.argv) > 1 and sys.argv[1] == "--google-admin":
-        # Run in Google Admin IPv4 mode
+    if not RESUME_PATH.exists():
+        raise FileNotFoundError(f"Resume not found: {RESUME_PATH}")
+
+    # Force IPv4 for test mode (Google Admin style)
+    print("🔌 Forcing IPv4 connection for test email...")
+
+    # Check if we're in Google Admin mode (--google-admin flag)
+    google_admin_mode = '--google-admin' in sys.argv
+
+    if google_admin_mode:
+        # Use Google Admin IPv4 connection
+        host = SMTP_HOST
+        port = SMTP_PORT
+
+        # Resolve to IPv4 only
+        addrinfos = socket.getaddrinfo(
+            host, port,
+            socket.AF_INET,  # IPv4 only
+            socket.SOCK_STREAM,
+            socket.IPPROTO_TCP
+        )
+
+        if not addrinfos:
+            raise socket.gaierror(f"No IPv4 addresses found for {host}")
+
+        ip, port = addrinfos[0][4][0], addrinfos[0][4][1]
+        print(f"   Resolved to IPv4: {ip}:{port}")
+
+        # Create custom SSL context for IP connection
+        ipv4_ctx = ssl.create_default_context()
+        ipv4_ctx.check_hostname = False
+        ipv4_ctx.verify_mode = ssl.CERT_NONE
+
+        server = smtplib.SMTP(ip, port, timeout=30)
+        server.ehlo(HELO_DOMAIN)
+        server.starttls(context=ipv4_ctx)
+        server.ehlo(HELO_DOMAIN)
+    else:
+        # Normal connection
+        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
+        server.ehlo(HELO_DOMAIN)
+        server.starttls(context=ssl.create_default_context())
+        server.ehlo(HELO_DOMAIN)
+
+    # Authenticate if needed
+    if not WHITELIST_MODE and SMTP_USER and SMTP_PASS:
+        print(f"🔐 Authenticating as {SMTP_USER}...")
+        server.login(SMTP_USER, SMTP_PASS)
+
+    # Build test message
+    subject = "TEST: Resume Application - Please Confirm Delivery"
+    body = f"""Hello,
+
+This is a TEST email from the Press Pass LA job application system.
+
+TO: {test_email}
+TIME: {utc_now_iso()}
+MODE: {'IPv4 Forced' if google_admin_mode else 'Normal'}
+
+This test confirms that:
+✅ SMTP connection is working
+✅ Resume attachment is properly formatted
+✅ Email can be delivered to this address
+
+If you received this, please reply with "RECEIVED" so we can confirm deliverability.
+
+Thank you,
+FLE
+Press Pass LA
+"""
+
+    try:
+        msg = build_message(test_email, subject, body)
+        server.send_message(msg)
+        print(f"\n✅ TEST EMAIL SENT SUCCESSFULLY!")
+        print(f"   To: {test_email}")
+        print(f"   Mode: {'IPv4 Forced' if google_admin_mode else 'Normal'}")
+        print(f"\n📌 IMPORTANT:")
+        print(f"   1. Check your spam folder")
+        print(f"   2. If found in spam, mark as 'Not Spam'")
+        print(f"   3. Add {FROM_EMAIL} to your contacts")
+        print(f"   4. Reply to confirm receipt")
+    except Exception as e:
+        print(f"\n❌ TEST EMAIL FAILED: {e}")
+        raise
+    finally:
+        server.quit()
+        print("🔌 SMTP connection closed")
+
+
+if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Job Application Mailer')
+    parser.add_argument('--google-admin', action='store_true', help='Use Google Admin IPv4 mode')
+    parser.add_argument('--test-send', type=str, help='Send a single test email to the specified address')
+
+    args, unknown = parser.parse_known_args()
+
+    # Handle test send mode
+    if args.test_send:
+        # Set command line args for Google Admin detection
+        if args.google_admin:
+            if '--google-admin' not in sys.argv:
+                sys.argv.append('--google-admin')
+        send_test_email(args.test_send)
+    # Handle Google Admin mode
+    elif args.google_admin:
         run_google_admin_ipv4()
     else:
         # Run normal mailer
