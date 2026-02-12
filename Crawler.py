@@ -93,16 +93,6 @@ def load_free_database_sources() -> Dict:
             "estimated_companies": 150,
         },
 
-        # ===== PUBLIC API DATASETS (NO AUTH) =====
-        "public_apis_org": {
-            "name": "Public APIs Directory",
-            "url": "https://api.publicapis.org/entries",
-            "type": "json",
-            "enabled": True,
-            "parser": "public_apis",
-            "description": "Companies with public APIs",
-            "estimated_companies": 1000,
-        },
 
         # ===== TECH NEWS/RSS FEEDS =====
         "techcrunch_feed": {
@@ -278,20 +268,17 @@ def parse_yc_json(data: Any) -> List[Dict]:
                 })
     return companies
 
-def parse_public_apis(data: Any) -> List[Dict]:
-    """Parse public-apis.org data"""
-    companies = []
-    if isinstance(data, dict):
-        entries = data.get('entries', [])
-        for entry in entries:
-            if entry.get('Link'):
-                companies.append({
-                    'name': entry.get('API', ''),
-                    'url': entry['Link'],
-                    'source': 'public_apis',
-                    'metadata': entry
-                })
-    return companies
+    # Deduplicate by domain
+    unique = {}
+    for c in companies:
+        try:
+            domain = extract_domain(c['url'])
+            if domain not in unique:
+                unique[domain] = c
+        except:
+            continue
+
+    return list(unique.values())
 
 def parse_edgar_companies(data: Any) -> List[Dict]:
     """Parse SEC EDGAR company data"""
@@ -612,7 +599,6 @@ def fetch_from_free_source(source_id: str, source_config: Dict) -> List[Dict]:
         # Map parser names to functions
         parsers = {
             'yc_json': parse_yc_json,
-            'public_apis': parse_public_apis,
             'edgar_companies': parse_edgar_companies,
             'opencorporates': parse_opencorporates,
             'hn_whoishiring': parse_hn_whoishiring,

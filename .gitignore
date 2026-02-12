@@ -17,7 +17,6 @@ __pycache__/
 
 # Data files
 contacts_*.json
-hr_contacts.json
 target_companies.txt
 
 # OS files
@@ -32,11 +31,13 @@ Thumbs.db
 resume.pdf
 EOF
 
-# Testers
+# Testers and helpers
 mail_body_test.py
 diagnose_spam.py
 api_test.py
+db_setup.py
 
 corporate_mailer_ppla.py
 corporate_crawler_ppla.py
 ppla_run.py
+setup_ppla_db.py

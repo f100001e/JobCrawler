@@ -4,8 +4,16 @@ import sys
 import subprocess
 from pathlib import Path
 from datetime import datetime
+import sqlite3
+import json  # ← ADD THIS
+import os   # ← ADD THIS
+from dotenv import load_dotenv  # ← ADD THIS
 
 BASE_DIR = Path(__file__).resolve().parent
+
+# Load database path from .env or use default
+load_dotenv(BASE_DIR / ".env")
+DB_PATH = (BASE_DIR / os.getenv("DB_PATH", "metacrawler.db")).resolve()  # ← ADD THIS
 
 
 def show_menu():
@@ -123,18 +131,165 @@ def test_email_ipv4():
 
 
 def import_json_only():
+    """Import JSON contacts into database - PPLA style with file selection"""
     print("\n" + "=" * 60)
-    print("IMPORT JSON CONTACTS ONLY")
+    print("📥 IMPORT JSON CONTACTS TO DATABASE")
     print("=" * 60)
 
-    import_script = BASE_DIR / "import_json.py"
-
-    if not import_script.exists():
-        print("❌ import_json.py not found!")
-        print("Please create import_json.py with import logic")
+    # List JSON files
+    json_files = list(BASE_DIR.glob("contacts*.json"))
+    if not json_files:
+        print("❌ No contacts*.json files found!")
+        print("💡 Run the crawler first to generate contact files")
         return
 
-    subprocess.run([sys.executable, "import_json.py"])
+    json_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+    print("\n📄 Available JSON files:")
+    for i, json_file in enumerate(json_files[:10], 1):  # Show up to 10 files
+        mtime = datetime.fromtimestamp(json_file.stat().st_mtime)
+        mtime_str = mtime.strftime("%Y-%m-%d %H:%M")
+        size = json_file.stat().st_size / 1024
+        print(f"   {i}. {json_file.name} ({size:.1f} KB, {mtime_str})")
+
+    print("\n   Enter number to import specific file")
+    print("   Press Enter for latest file")
+    print("   Type 'all' to import all files")
+
+    file_choice = input("\nSelect file to import: ").strip()
+
+    files_to_import = []
+
+    if file_choice.lower() == 'all':
+        files_to_import = json_files
+        print(f"\n📋 Will import ALL {len(files_to_import)} files")
+    elif file_choice == '':
+        files_to_import = [json_files[0]]
+        print(f"\n📋 Using latest file: {json_files[0].name}")
+    elif file_choice.isdigit():
+        idx = int(file_choice) - 1
+        if 0 <= idx < len(json_files):
+            files_to_import = [json_files[idx]]
+            print(f"\n📋 Using file: {json_files[idx].name}")
+        else:
+            print("❌ Invalid choice, using latest file.")
+            files_to_import = [json_files[0]]
+    else:
+        print("❌ Invalid choice, using latest file.")
+        files_to_import = [json_files[0]]
+
+    total_imported = 0
+    total_skipped = 0
+    total_files = 0
+
+    for json_file in files_to_import:
+        print(f"\n{'=' * 60}")
+        print(f"📖 Processing: {json_file.name}")
+        print(f"{'=' * 60}")
+
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            if not data:
+                print("❌ JSON file is empty!")
+                continue
+
+            print(f"📊 Found {len(data)} companies in JSON")
+
+            # Count companies with contacts
+            companies_with_contacts = []
+            for company in data:
+                contacts = company.get('contacts', [])
+                if contacts and len(contacts) > 0:
+                    companies_with_contacts.append(company)
+
+            print(f"✅ {len(companies_with_contacts)} companies have contacts")
+
+            if not companies_with_contacts:
+                print("❌ No companies with contacts found in JSON!")
+                continue
+
+            # Import to database
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+
+            imported = 0
+            skipped = 0
+
+            for company_data in companies_with_contacts:
+                domain = company_data.get('domain', '')
+                if not domain:
+                    continue
+
+                # Insert or get company
+                cursor.execute("""
+                    INSERT OR IGNORE INTO companies (domain, organization)
+                    VALUES (?, ?)
+                """, (domain, company_data.get('organization', company_data.get('company', domain))))
+
+                cursor.execute("SELECT id FROM companies WHERE domain = ?", (domain,))
+                company_id = cursor.fetchone()[0]
+
+                # Import contacts
+                contacts = company_data.get('contacts', [])
+                for contact in contacts:
+                    email = contact.get('email', '').strip()
+                    if not email:
+                        continue
+
+                    # Check if email already exists for this company
+                    cursor.execute("""
+                        SELECT id FROM contacts 
+                        WHERE company_id = ? AND email = ?
+                    """, (company_id, email))
+
+                    if cursor.fetchone():
+                        skipped += 1
+                        continue
+
+                    cursor.execute("""
+                        INSERT INTO contacts
+                        (company_id, email, name, confidence, type, contacted, source_file)
+                        VALUES (?, ?, ?, ?, ?, 0, ?)
+                    """, (
+                        company_id,
+                        email,
+                        contact.get('name', ''),
+                        contact.get('confidence'),
+                        contact.get('type', 'personal'),
+                        json_file.name
+                    ))
+
+                    imported += 1
+
+            conn.commit()
+            conn.close()
+
+            print(f"   📥 Imported: {imported} new contacts")
+            print(f"   ⏭️  Skipped: {skipped} duplicates")
+            print(f"   ✅ Done with {json_file.name}")
+
+            total_imported += imported
+            total_skipped += skipped
+            total_files += 1
+
+        except Exception as e:
+            print(f"❌ Error importing {json_file.name}: {e}")
+            import traceback
+            traceback.print_exc()
+
+    print(f"\n{'=' * 60}")
+    print("📊 IMPORT SUMMARY")
+    print(f"{'=' * 60}")
+    print(f"📁 Files processed: {total_files}")
+    print(f"📥 New contacts imported: {total_imported}")
+    print(f"⏭️  Duplicates skipped: {total_skipped}")
+    print(f"💾 Database: {DB_PATH.name}")
+    print(f"{'=' * 60}")
+
+    # Show current stats
+    check_database()
 
 
 def check_database():
