@@ -14,13 +14,12 @@ modulegraph==0.19.6
 numpy==2.3.1
 packaging==25.0
 pillow==11.2.1
-pip==25.1.1
 py2app==0.28.8
 pyinstaller==6.14.1
 pyinstaller-hooks-contrib==2025.5
 pyparsing==3.2.3
 python-dateutil==2.9.0.post0
-python-dotenv==1.2.1
+python-dotenv==1.2.2
 PyYAML==6.0.3
 requests==2.32.5
 requests-file==3.0.1
@@ -28,7 +27,5 @@ setuptools==80.9.0
 six==1.17.0
 tldextract==5.3.1
 urllib3==2.6.3
-dotenv==1.2.2
 requests==2.32.5
 tldextract==5.3.1
-pyyaml==6.03

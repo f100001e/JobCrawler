@@ -456,8 +456,10 @@ def parse_plain_text(text: str) -> List[Dict]:
     """Parse plain text domains"""
     companies = []
     for line in text.strip().split('\n'):
+        original_line = line  # Keep original for debugging
         line = line.strip()
-        if line and not line.startswith('#'):
+        
+        if line and not line.lstrip().startswith('#'):
             # Clean the line
             domain = line.split()[0]  # Take first word
             domain = domain.strip('*').strip('-').strip()
@@ -874,7 +876,7 @@ def init_db():
             id INTEGER PRIMARY KEY,
             domain TEXT UNIQUE,
             organization TEXT,
-            category TEXT DEFAULT 'engineering',
+            category TEXT DEFAULT 'open',
             last_checked TEXT,
             discovered_from TEXT,
             source_name TEXT,
@@ -901,7 +903,7 @@ def init_db():
 
         # Add missing columns if they don't exist
         try:
-            conn.execute("ALTER TABLE companies ADD COLUMN category TEXT DEFAULT 'engineering'")
+            conn.execute("ALTER TABLE companies ADD COLUMN category TEXT DEFAULT 'open'")
         except sqlite3.OperationalError:
             pass  # Column already exists
 
@@ -929,7 +931,7 @@ def import_json_contacts(json_path: Path):
                 (domain, organization, category) 
                 VALUES(?, ?, ?)
                 """,
-                (domain, item.get("organization") or item.get("company") or domain, 'engineering'),
+                (domain, item.get("organization") or item.get("company") or domain, 'open'),
             )
 
             company_id = conn.execute(

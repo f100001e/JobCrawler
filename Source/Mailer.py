@@ -86,7 +86,7 @@ def fetch_send_queue(conn: sqlite3.Connection, limit: int):
     cur.execute("""
         SELECT c.id, c.email, c.name, c.confidence, c.type, 
                COALESCE(co.domain, 'Unknown') as domain,
-               COALESCE(co.category, 'engineering') as category,
+               COALESCE(co.category, 'Open') as category,
                c.last_error
         FROM contacts c
         LEFT JOIN companies co ON co.id = c.company_id
@@ -113,7 +113,7 @@ def dismiss_failed(conn: sqlite3.Connection, contact_id: int, err: str):
 
 
 def default_body(domain: str, category: str | None, name: str | None = None, email_type: str | None = None) -> str:
-    cat = category or "engineering"
+    cat = category or "any"
 
     # Don't personalize generic inboxes (jobs@, info@, etc.)
     first = None
@@ -130,6 +130,8 @@ Resume attached. If there's a better contact or process, I'd appreciate a pointe
 
 Best,
 FLE
+
+GitHub: github.com/f100001e
 """
 
 
@@ -275,7 +277,7 @@ def run_mailer():
             for i, r in enumerate(rows, 1):
                 contact_id, to_email, name, confidence, email_type, domain, category, last_error = r
 
-                subject = f"Application: {(category or 'Engineering')} roles"
+                subject = f"Application: {(category or 'Open')} roles"
                 body = default_body(domain, category, name=name, email_type=email_type)
 
                 try:
