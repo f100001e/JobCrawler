@@ -61,32 +61,10 @@ def build_message(to_email: str, subject: str, body: str) -> EmailMessage:
 
 def fetch_send_queue(conn: sqlite3.Connection, limit: int):
     cur = conn.cursor()
-
-    # First, let's debug what's in the database
-    cur.execute("SELECT COUNT(*) FROM contacts WHERE contacted = 0")
-    pending_count = cur.fetchone()[0]
-    print(f"DEBUG: Found {pending_count} pending contacts in database")
-
-    cur.execute("SELECT COUNT(*) FROM companies")
-    company_count = cur.fetchone()[0]
-    print(f"DEBUG: Found {company_count} companies in database")
-
-    # Show first few pending contacts
-    cur.execute("""
-        SELECT c.id, c.email, c.name, c.confidence, c.type, co.domain, co.category
-        FROM contacts c
-        LEFT JOIN companies co ON co.id = c.company_id
-        WHERE c.contacted = 0
-        LIMIT 5
-    """)
-    sample = cur.fetchall()
-    print(f"DEBUG: Sample pending contacts: {sample}")
-
-    # Now run the actual query
     cur.execute("""
         SELECT c.id, c.email, c.name, c.confidence, c.type, 
                COALESCE(co.domain, 'Unknown') as domain,
-               COALESCE(co.category, 'Open') as category,
+               'Open' as category,
                c.last_error
         FROM contacts c
         LEFT JOIN companies co ON co.id = c.company_id
@@ -113,9 +91,11 @@ def dismiss_failed(conn: sqlite3.Connection, contact_id: int, err: str):
 
 
 def default_body(domain: str, category: str | None, name: str | None = None, email_type: str | None = None) -> str:
-    cat = category or "any"
+    cat = (category or "open").strip().lower()
+    if cat not in {"open", "general", "any"}:
+        cat = "open"
 
-    # Don't personalize generic inboxes (jobs@, info@, etc.)
+    # Don't personalize generic inboxes (jobs@, info@, etc.) IMPORTANT LOGIC
     first = None
     if (email_type or "").lower() != "generic":
         if name and name.strip() and name.strip().upper() != "N/A":
@@ -277,8 +257,9 @@ def run_mailer():
             for i, r in enumerate(rows, 1):
                 contact_id, to_email, name, confidence, email_type, domain, category, last_error = r
 
-                subject = f"Application: {(category or 'Open')} roles"
-                body = default_body(domain, category, name=name, email_type=email_type)
+                cat = "Open"
+                subject = f"Application: {cat} roles"
+                body = default_body(domain, cat, name=name, email_type=email_type)
 
                 try:
                     msg = build_message(to_email, subject, body)
