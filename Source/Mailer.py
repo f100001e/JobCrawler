@@ -106,12 +106,13 @@ def default_body(domain: str, category: str | None, name: str | None = None, ema
 
 I'm reaching out regarding {cat} roles at {domain}.
 
-Resume attached. If there's a better contact or process, I'd appreciate a pointer.
+Resume attached. If there's a better contact or process, I'd appreciate a pointer. 
 
 Best,
 FLE
 
 GitHub: github.com/f100001e
+LinkedIn: linkedin.com/in/franklangelliott
 """
 
 
