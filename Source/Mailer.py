@@ -422,7 +422,7 @@ def send_test_email(test_email):
     subject = "TEST: Resume Application - Please Confirm Delivery"
     body = f"""Hello,
 
-This is a TEST email from the Press Pass LA job application system.
+TEST
 
 TO: {test_email}
 TIME: {utc_now_iso()}
@@ -433,11 +433,8 @@ This test confirms that:
 ✅ Resume attachment is properly formatted
 ✅ Email can be delivered to this address
 
-If you received this, please reply with "RECEIVED" so we can confirm deliverability.
+TEST
 
-Thank you,
-FLE
-Press Pass LA
 """
 
     try:
