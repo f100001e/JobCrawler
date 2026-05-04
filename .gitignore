@@ -18,6 +18,8 @@ __pycache__/
 # Data files
 contacts_*.json
 target_companies.txt
+hunter_contacts_*.json
+*.csv
 
 # OS files
 .DS_Store

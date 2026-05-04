@@ -171,6 +171,25 @@ def test_smtp_connection(server):
     except:
         return False
 
+def get_one_contact_per_domain(conn) -> list:
+    """Pick highest priority contact per domain"""
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT c.id, c.email, c.name, co.domain, co.organization
+        FROM contacts c
+        JOIN companies co ON c.company_id = co.id
+        WHERE c.contacted = 0
+        ORDER BY co.domain, c.confidence DESC
+    """)
+    rows = cursor.fetchall()
+    seen_domains = set()
+    selected = []
+    for row in rows:
+        domain = row[3]
+        if domain not in seen_domains:
+            seen_domains.add(domain)
+            selected.append(row)
+    return selected
 
 def run_mailer():
     # Check database first
@@ -182,7 +201,7 @@ def run_mailer():
         raise FileNotFoundError(f"Resume not found: {RESUME_PATH}")
 
     with sqlite3.connect(DB_PATH) as conn:
-        rows = fetch_send_queue(conn, MAX_PER_RUN)
+        rows = get_one_contact_per_domain(conn)[:MAX_PER_RUN]
         if not rows:
             print("No pending contacts to email.")
             return
@@ -257,11 +276,11 @@ def run_mailer():
             sent = 0
             failed = 0
             for i, r in enumerate(rows, 1):
-                contact_id, to_email, name, confidence, email_type, domain, category, last_error = r
-
-                cat = "Open"
-                subject = f"Application: {cat} roles"
-                body = default_body(domain, cat, name=name, email_type=email_type)
+                contact_id, to_email, name, domain, organization = r
+                email_type = None  # not available from this query
+                category = "Open"
+                subject = f"Application: {category} roles"
+                body = default_body(domain, category, name=name, email_type=email_type)
 
                 try:
                     msg = build_message(to_email, subject, body)
@@ -348,16 +367,6 @@ def run_google_admin_ipv4():
     # Now run the normal mailer but with IPv4 host
     run_mailer()
 
-
-if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) > 1 and sys.argv[1] == "--google-admin":
-        # Run in Google Admin IPv4 mode
-        run_google_admin_ipv4()
-    else:
-        # Run normal mailer
-        run_mailer()
 
 def send_test_email(test_email):
     """Send a single test email using forced IPv4 to check deliverability"""
