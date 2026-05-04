@@ -41,6 +41,8 @@ mail_body_test.py
 diagnose_spam.py
 api_test.py
 db_setup.py
+import_json.py
+mail_test_user_body.py
 
 # PPLA
 corporate_mailer_ppla.py
