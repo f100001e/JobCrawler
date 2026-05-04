@@ -44,174 +44,106 @@ def load_free_database_sources() -> Dict:
     """
 
     defaults = {
-        # ===== Y COMBINATOR SOURCES =====
-        "yc_export": {
-            "name": "Y Combinator Companies Export",
-            "url": "https://www.ycombinator.com/companies/export.json",
-            "type": "json",
-            "enabled": True,
-            "parser": "yc_json",
-            "description": "Official YC company list (free, no auth)",
-            "estimated_companies": 4000,
-        },
-        "yc_companies_page": {
-            "name": "YC Companies HTML Page",
-            "url": "https://www.ycombinator.com/companies",
-            "type": "html",
-            "enabled": True,
-            "parser": "yc_html",
-            "description": "YC companies directory page",
-            "estimated_companies": 100,
-        },
+    # ===== GITHUB DATASETS (WORKING) =====
+    "github_startup_resources": {
+        "name": "GitHub Startup Resources",
+        "url": "https://raw.githubusercontent.com/mmccaff/PlacesToPostYourStartup/master/README.md",
+        "type": "markdown",
+        "enabled": True,
+        "parser": "github_markdown",
+        "description": "Places to post your startup",
+        "estimated_companies": 200,
+    },
 
-        # ===== GITHUB DATASETS (FREE, PUBLIC) =====
-        "github_yc_dataset": {
-            "name": "GitHub YC Dataset",
-            "url": "https://raw.githubusercontent.com/saasify-sh/awesome-yc-companies/master/README.md",
-            "type": "markdown",
-            "enabled": True,
-            "parser": "github_markdown",
-            "description": "Awesome YC Companies list on GitHub",
-            "estimated_companies": 300,
-        },
-        "github_startup_resources": {
-            "name": "GitHub Startup Resources",
-            "url": "https://raw.githubusercontent.com/mmccaff/PlacesToPostYourStartup/master/README.md",
-            "type": "markdown",
-            "enabled": True,
-            "parser": "github_markdown",
-            "description": "Places to post your startup",
-            "estimated_companies": 200,
-        },
-        "github_awesome_startups": {
-            "name": "GitHub Awesome Startups",
-            "url": "https://raw.githubusercontent.com/atinfo/awesome-startups/master/README.md",
-            "type": "markdown",
-            "enabled": True,
-            "parser": "github_markdown",
-            "description": "Curated list of awesome startups",
-            "estimated_companies": 150,
-        },
+    # ===== CNCF LANDSCAPE (real companies, real URLs) =====
+    "cncf_landscape": {
+        "name": "CNCF Landscape",
+        "url": "https://raw.githubusercontent.com/cncf/landscape/refs/heads/master/landscape.yml",
+        "type": "yaml_remote",
+        "enabled": True,
+        "parser": "cncf_landscape",
+        "description": "Cloud Native Computing Foundation member companies",
+        "estimated_companies": 800,
+    },
 
+    # ===== TECH NEWS/RSS =====
+    "hacker_news_whoishiring": {
+        "name": "Hacker News Who is Hiring",
+        "url": "https://hn.algolia.com/api/v1/search?tags=story,author_whoishiring",
+        "type": "json",
+        "enabled": True,
+        "parser": "hn_whoishiring",
+        "description": "HN Who is Hiring posts",
+        "estimated_companies": 1000,
+    },
 
-        # ===== TECH NEWS/RSS FEEDS =====
-        "techcrunch_feed": {
-            "name": "TechCrunch RSS Feed",
-            "url": "https://techcrunch.com/feed/",
-            "type": "rss",
-            "enabled": True,
-            "parser": "rss_feed",
-            "description": "TechCrunch articles mentioning companies",
-            "estimated_companies": 50,
-        },
-        "hacker_news_whoishiring": {
-            "name": "Hacker News Who is Hiring",
-            "url": "https://hn.algolia.com/api/v1/search?tags=story,author_whoishiring",
-            "type": "json",
-            "enabled": True,
-            "parser": "hn_whoishiring",
-            "description": "HN Who is Hiring posts (mentions companies)",
-            "estimated_companies": 1000,
-        },
+    # ===== LOCAL FILES =====
+    "local_domains": {
+        "name": "Local Domains File",
+        "path": "target_companies.txt",
+        "type": "local_txt",
+        "enabled": True,
+        "parser": "plain_text",
+        "description": "Your own list of target domains",
+        "estimated_companies": "variable",
+    },
+    "local_csv": {
+        "name": "Local CSV File",
+        "path": "companies.csv",
+        "type": "local_csv",
+        "enabled": False,
+        "parser": "csv",
+        "description": "Your own CSV with company data",
+        "estimated_companies": "variable",
+    },
 
-        # ===== GOVERNMENT/OPEN DATA =====
-        "edgar_companies": {
-            "name": "SEC EDGAR Company List",
-            "url": "https://www.sec.gov/files/company_tickers.json",
-            "type": "json",
-            "enabled": True,
-            "parser": "edgar_companies",
-            "description": "All companies registered with SEC (US public companies)",
-            "estimated_companies": 8000,
-        },
-
-        # ===== LOCAL FILES (USER PROVIDED) =====
-        "local_domains": {
-            "name": "Local Domains File",
-            "path": "companies.txt",
-            "type": "local_txt",
-            "enabled": True,
-            "parser": "plain_text",
-            "description": "Your own list of target domains",
-            "estimated_companies": "variable",
-        },
-        "local_csv": {
-            "name": "Local CSV File",
-            "path": "companies.csv",
-            "type": "local_csv",
-            "enabled": False,
-            "parser": "csv",
-            "description": "Your own CSV with company data",
-            "estimated_companies": "variable",
-        },
-
-        # ===== (OPTIONAL / OFTEN BLOCKED) =====
-        # Keep these in defaults so YAML can enable/disable them, but expect blocks.
-        "crunchbase_open_data": {
-            "name": "Crunchbase Open Data Map",
-            "url": "https://data.crunchbase.com/docs/open-data-map",
-            "type": "html",
-            "enabled": False,
-            "parser": "crunchbase_sitemap",
-            "description": "Crunchbase sitemap for company discovery",
-            "estimated_companies": 500,
-        },
-        "opencorporates": {
-            "name": "OpenCorporates API",
-            "url": "https://api.opencorporates.com/v0.4/companies/search",
-            "type": "json",
-            "enabled": False,
-            "params": {"q": "technology", "per_page": 100},
-            "parser": "opencorporates",
-            "description": "Global corporate data (often auth / limited)",
-            "estimated_companies": 100,
-        },
-        "yellowpages_sitemap": {
-            "name": "YellowPages Sitemap",
-            "url": "https://www.yellowpages.com/sitemap.xml",
-            "type": "xml",
-            "enabled": False,
-            "parser": "sitemap_urls",
-            "description": "YellowPages business listings (often blocked)",
-            "estimated_companies": 100,
-        },
-        "angel_list_public": {
-            "name": "AngelList Public Pages",
-            "url": "https://angel.co/companies",
-            "type": "html",
-            "enabled": False,
-            "parser": "angel_list_scrape",
-            "description": "AngelList directory (often blocked / JS-heavy)",
-            "estimated_companies": 200,
-        },
-        "product_hunt_public": {
-            "name": "Product Hunt Today",
-            "url": "https://www.producthunt.com/",
-            "type": "html",
-            "enabled": False,
-            "parser": "product_hunt_scrape",
-            "description": "Product Hunt front page (often blocked / JS-heavy)",
-            "estimated_companies": 30,
-        },
-        "indie_hackers": {
-            "name": "Indie Hackers Products",
-            "url": "https://www.indiehackers.com/products",
-            "type": "html",
-            "enabled": False,
-            "parser": "indie_hackers_scrape",
-            "description": "Indie Hackers product directory (often blocked / JS-heavy)",
-            "estimated_companies": 500,
-        },
-        "betalist": {
-            "name": "BetaList Startups",
-            "url": "https://betalist.com/",
-            "type": "html",
-            "enabled": False,
-            "parser": "betalist_scrape",
-            "description": "BetaList startup directory (often blocks bots)",
-            "estimated_companies": 100,
-        },
-    }
+    # ===== DISABLED / OFTEN BLOCKED =====
+    "techcrunch_feed": {
+        "name": "TechCrunch RSS Feed",
+        "url": "https://techcrunch.com/feed/",
+        "type": "rss",
+        "enabled": False,
+        "parser": "rss_feed",
+        "description": "Low yield (1 company), disabled",
+        "estimated_companies": 1,
+    },
+    "edgar_companies": {
+        "name": "SEC EDGAR Company List",
+        "url": "https://www.sec.gov/files/company_tickers.json",
+        "type": "json",
+        "enabled": False,
+        "parser": "edgar_companies",
+        "description": "Disabled - fake domains, no real URLs",
+        "estimated_companies": 0,
+    },
+    "angel_list_public": {
+        "name": "AngelList Public Pages",
+        "url": "https://angel.co/companies",
+        "type": "html",
+        "enabled": False,
+        "parser": "angel_list_scrape",
+        "description": "403 blocked",
+        "estimated_companies": 0,
+    },
+    "product_hunt_public": {
+        "name": "Product Hunt Today",
+        "url": "https://www.producthunt.com/",
+        "type": "html",
+        "enabled": False,
+        "parser": "product_hunt_scrape",
+        "description": "JS-rendered, yields 0",
+        "estimated_companies": 0,
+    },
+    "indie_hackers": {
+        "name": "Indie Hackers Products",
+        "url": "https://www.indiehackers.com/products",
+        "type": "html",
+        "enabled": False,
+        "parser": "indie_hackers_scrape",
+        "description": "JS-rendered, yields 0",
+        "estimated_companies": 0,
+    },
+}
 
     # Apply YAML overrides
     if DATABASE_SOURCES_FILE.exists():
@@ -232,6 +164,30 @@ def load_free_database_sources() -> Dict:
             print(f"Note: Could not load {DATABASE_SOURCES_FILE}: {e}")
 
     return defaults
+
+def parse_cncf_landscape(data: Any) -> List[Dict]:
+    """Parse CNCF landscape YAML - real companies with real homepage URLs"""
+    companies = []
+    if not isinstance(data, str):
+        return companies
+    try:
+        landscape = yaml.safe_load(data)
+        categories = landscape if isinstance(landscape, list) else landscape.get('landscape', [])
+        for category in categories:
+            for subcategory in category.get('subcategories', []):
+                for item in subcategory.get('items', []):
+                    url = item.get('homepage_url') or item.get('homepageurl')
+                    name = item.get('name', '')
+                    if url and name:
+                        companies.append({
+                            'name': name,
+                            'url': url,
+                            'source': 'cncf_landscape',
+                            'metadata': {'category': category.get('name', '')}
+                        })
+    except Exception as e:
+        print(f"Error parsing CNCF landscape: {e}")
+    return companies
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -268,17 +224,6 @@ def parse_yc_json(data: Any) -> List[Dict]:
                 })
     return companies
 
-    # Deduplicate by domain
-    unique = {}
-    for c in companies:
-        try:
-            domain = extract_domain(c['url'])
-            if domain not in unique:
-                unique[domain] = c
-        except:
-            continue
-
-    return list(unique.values())
 
 def parse_edgar_companies(data: Any) -> List[Dict]:
     """Parse SEC EDGAR company data"""
@@ -600,21 +545,23 @@ def fetch_from_free_source(source_id: str, source_config: Dict) -> List[Dict]:
 
         # Map parser names to functions
         parsers = {
+            'cncf_landscape': parse_cncf_landscape,
+            'github_markdown': parse_github_markdown,
+            'hn_whoishiring': parse_hn_whoishiring,
+            'plain_text': parse_plain_text,
+            'csv': parse_csv_content,
+            'rss_feed': parse_rss_feed,
+            # Legacy / disabled but kept to avoid KeyErrors
             'yc_json': parse_yc_json,
             'edgar_companies': parse_edgar_companies,
             'opencorporates': parse_opencorporates,
-            'hn_whoishiring': parse_hn_whoishiring,
             'sitemap_urls': parse_sitemap_urls,
-            'rss_feed': parse_rss_feed,
-            'github_markdown': parse_github_markdown,
-            'plain_text': parse_plain_text,
-            'csv': parse_csv_content,
             'angel_list_scrape': scrape_angel_list,
             'product_hunt_scrape': scrape_product_hunt,
             'indie_hackers_scrape': scrape_indie_hackers,
-            'yc_html': scrape_angel_list,  # Reuse for now
+            'yc_html': scrape_angel_list,
             'crunchbase_sitemap': parse_sitemap_urls,
-            'betalist_scrape': scrape_product_hunt  # Reuse for now
+            'betalist_scrape': scrape_product_hunt,
         }
 
         parser = parsers.get(parser_name)
@@ -670,6 +617,14 @@ def fetch_from_free_source(source_id: str, source_config: Dict) -> List[Dict]:
             else:
                 print(f"    ✗ HTTP {response.status_code}")
                 return []
+        
+        elif source_type == 'yaml_remote':
+            response = requests.get(url, headers=HEADERS, timeout=30)
+            if response.status_code == 200:
+                companies = parser(response.text)
+            else:
+                print(f"    ✗ HTTP {response.status_code}")
+                return []
 
         else:  # JSON
             params = source_config.get('params', {})
@@ -696,7 +651,7 @@ def fetch_from_free_source(source_id: str, source_config: Dict) -> List[Dict]:
 
 def discover_companies_from_local_file_only() -> List[Dict]:
     """
-    Discover companies ONLY from local companies.txt file
+    Discover companies ONLY from local target_companies.txt file
     Skips all other free sources
     """
     print("\n" + "=" * 60)
@@ -821,9 +776,7 @@ def extract_ranked_contacts(hunter_response: dict, domain: str) -> tuple[str, li
     ranked.sort(key=lambda c: (c["priority"], -(c["confidence"] or 0), c["email"].lower()))
 
     return organization, ranked
-
 def process_companies(companies: List[Dict], max_companies: int = 50):
-    """Process companies with Hunter.io"""
     print(f"\n{'=' * 60}")
     print(f"PROCESSING UP TO {max_companies} COMPANIES")
     print(f"{'=' * 60}\n")
@@ -831,16 +784,35 @@ def process_companies(companies: List[Dict], max_companies: int = 50):
     results = []
 
     with sqlite3.connect(DB_PATH) as conn:
-        for i, company in enumerate(companies[:max_companies], 1):
+        processed = {row[0] for row in conn.execute("SELECT domain FROM companies").fetchall()}
+
+    unprocessed = []
+    for company in companies:
+        try:
+            domain = extract_domain(company['url'])
+            if domain not in processed:
+                unprocessed.append(company)
+        except:
+            continue
+
+    batch = unprocessed[:max_companies]
+    print(f"  {len(processed)} already done, {len(unprocessed)} remaining, processing {len(batch)}\n")
+
+    with sqlite3.connect(DB_PATH) as conn:
+        for i, company in enumerate(batch, 1):
             try:
                 domain = extract_domain(company['url'])
-                print(f"[{i}/{len(companies[:max_companies])}] 🔍 {company.get('name', domain)[:40]} ({domain})")
+                print(f"[{i}/{len(batch)}] 🔍 {company.get('name', domain)[:40]} ({domain})")
 
-                # Skip if already processed recently (you'd add this check)
-
-                # Get contacts
                 hunter_data = hunter_domain_search(domain)
                 organization, contacts = extract_ranked_contacts(hunter_data, domain)
+
+                # Mark as processed regardless of whether contacts were found
+                conn.execute(
+                    "INSERT OR IGNORE INTO companies (domain, organization) VALUES (?, ?)",
+                    (domain, organization if contacts else domain)
+                )
+                conn.commit()
 
                 if contacts:
                     print(f"    ✓ Found {len(contacts)} contacts")
@@ -853,7 +825,6 @@ def process_companies(companies: List[Dict], max_companies: int = 50):
                 else:
                     print(f"    ✗ No contacts found")
 
-                # Be polite to Hunter.io API
                 time.sleep(CRAWL_DELAY)
 
             except Exception as e:
