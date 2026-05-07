@@ -166,27 +166,25 @@ def load_free_database_sources() -> Dict:
     return defaults
 
 def parse_cncf_landscape(data: Any) -> List[Dict]:
-    """Parse CNCF landscape YAML - real companies with real homepage URLs"""
     companies = []
     if not isinstance(data, str):
         return companies
-    try:
-        landscape = yaml.safe_load(data)
-        categories = landscape if isinstance(landscape, list) else landscape.get('landscape', [])
-        for category in categories:
-            for subcategory in category.get('subcategories', []):
-                for item in subcategory.get('items', []):
-                    url = item.get('homepage_url') or item.get('homepageurl')
-                    name = item.get('name', '')
-                    if url and name:
-                        companies.append({
-                            'name': name,
-                            'url': url,
-                            'source': 'cncf_landscape',
-                            'metadata': {'category': category.get('name', '')}
-                        })
-    except Exception as e:
-        print(f"Error parsing CNCF landscape: {e}")
+    landscape = yaml.safe_load(data)
+    if not landscape:
+        return companies
+    categories = landscape if isinstance(landscape, list) else landscape.get('landscape', [])
+    for category in categories:
+        for subcategory in category.get('subcategories') or []:
+            for item in subcategory.get('items') or []:
+                url = item.get('homepage_url') or item.get('homepageurl')
+                name = item.get('name', '')
+                if url and name:
+                    companies.append({
+                        'name': name,
+                        'url': url,
+                        'source': 'cncf_landscape',
+                        'metadata': {'category': category.get('name', '')}
+                    })
     return companies
 
 def utc_now_iso() -> str:
