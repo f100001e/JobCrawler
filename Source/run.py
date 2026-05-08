@@ -212,6 +212,8 @@ def import_json_only():
 
             # Import to database
             conn = sqlite3.connect(DB_PATH)
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=5000")
             cursor = conn.cursor()
 
             imported = 0
@@ -224,12 +226,14 @@ def import_json_only():
 
                 # Insert or get company
                 cursor.execute("""
-                    INSERT OR IGNORE INTO companies (domain, organization)
-                    VALUES (?, ?)
-                """, (domain, company_data.get('organization', company_data.get('company', domain))))
+                    INSERT OR IGNORE INTO companies (domain, organization, source_name)
+                    VALUES (?, ?, ?)
+                """, (domain, company_data.get('organization', company_data.get('company', domain)), json_file.name))
 
-                cursor.execute("SELECT id FROM companies WHERE domain = ?", (domain,))
-                company_id = cursor.fetchone()[0]
+                result = cursor.execute("SELECT id FROM companies WHERE domain = ?", (domain,)).fetchone()
+                if result is None:
+                    continue
+                company_id = result[0]
 
                 # Import contacts
                 contacts = company_data.get('contacts', [])
@@ -238,7 +242,6 @@ def import_json_only():
                     if not email:
                         continue
 
-                    # Check if email already exists for this company
                     cursor.execute("""
                         SELECT id FROM contacts 
                         WHERE company_id = ? AND email = ?
@@ -250,15 +253,14 @@ def import_json_only():
 
                     cursor.execute("""
                         INSERT INTO contacts
-                        (company_id, email, name, confidence, type, contacted, source_file)
-                        VALUES (?, ?, ?, ?, ?, 0, ?)
+                        (company_id, email, name, confidence, type, contacted)
+                        VALUES (?, ?, ?, ?, ?, 0)
                     """, (
                         company_id,
                         email,
                         contact.get('name', ''),
                         contact.get('confidence'),
                         contact.get('type', 'personal'),
-                        json_file.name
                     ))
 
                     imported += 1

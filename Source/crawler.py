@@ -774,6 +774,7 @@ def extract_ranked_contacts(hunter_response: dict, domain: str) -> tuple[str, li
     ranked.sort(key=lambda c: (c["priority"], -(c["confidence"] or 0), c["email"].lower()))
 
     return organization, ranked
+
 def process_companies(companies: List[Dict], max_companies: int = 50):
     print(f"\n{'=' * 60}")
     print(f"PROCESSING UP TO {max_companies} COMPANIES")
@@ -781,37 +782,43 @@ def process_companies(companies: List[Dict], max_companies: int = 50):
 
     results = []
 
-    with sqlite3.connect(DB_PATH) as conn:
+    # FIX: Add timeout and WAL mode
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+    
+    try:
         processed = {row[0] for row in conn.execute("SELECT domain FROM companies").fetchall()}
-
-    unprocessed = []
-    for company in companies:
-        try:
-            domain = extract_domain(company['url'])
-            if domain not in processed:
-                unprocessed.append(company)
-        except:
-            continue
-
-    batch = unprocessed[:max_companies]
-    print(f"  {len(processed)} already done, {len(unprocessed)} remaining, processing {len(batch)}\n")
-
-    with sqlite3.connect(DB_PATH) as conn:
+        
+        unprocessed = []
+        for company in companies:
+            try:
+                domain = extract_domain(company['url'])
+                if domain not in processed:
+                    unprocessed.append(company)
+            except:
+                continue
+        
+        batch = unprocessed[:max_companies]
+        print(f"  {len(processed)} already done, {len(unprocessed)} remaining, processing {len(batch)}\n")
+        
         for i, company in enumerate(batch, 1):
             try:
                 domain = extract_domain(company['url'])
                 print(f"[{i}/{len(batch)}] 🔍 {company.get('name', domain)[:40]} ({domain})")
-
+                
                 hunter_data = hunter_domain_search(domain)
                 organization, contacts = extract_ranked_contacts(hunter_data, domain)
-
-                # Mark as processed regardless of whether contacts were found
+                
                 conn.execute(
                     "INSERT OR IGNORE INTO companies (domain, organization) VALUES (?, ?)",
                     (domain, organization if contacts else domain)
                 )
-                conn.commit()
-
+                
+                # FIX: Commit every 10 companies instead of each
+                if i % 10 == 0:
+                    conn.commit()
+                
                 if contacts:
                     print(f"    ✓ Found {len(contacts)} contacts")
                     results.append({
@@ -822,24 +829,32 @@ def process_companies(companies: List[Dict], max_companies: int = 50):
                     })
                 else:
                     print(f"    ✗ No contacts found")
-
+                
                 time.sleep(CRAWL_DELAY)
-
+                
             except Exception as e:
                 print(f"    ✗ Error: {e}")
+                conn.rollback()
                 time.sleep(CRAWL_DELAY * 2)
-
+        
+        conn.commit()  # Final commit
+        
+    finally:
+        conn.close()
+    
     # Save results
     if results:
         output_file = BASE_DIR / f"contacts_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(results, f, indent=2)
         print(f"\n✓ Saved {len(results)} companies with contacts to {output_file}")
-
+    
     return results
 
 def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=30.0) as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
         conn.execute("""
         CREATE TABLE IF NOT EXISTS companies (
             id INTEGER PRIMARY KEY,
@@ -859,8 +874,11 @@ def init_db():
             company_id INTEGER,
             email TEXT,
             name TEXT,
+            position TEXT,             
+            department TEXT,            
             confidence INTEGER,
             type TEXT,
+            is_decision_maker INTEGER DEFAULT 0,
             contacted INTEGER DEFAULT 0,
             contacted_at TEXT,
             last_error TEXT,
@@ -871,29 +889,37 @@ def init_db():
         """)
 
         # Add missing columns if they don't exist
-        try:
-            conn.execute("ALTER TABLE companies ADD COLUMN category TEXT DEFAULT 'open'")
-        except sqlite3.OperationalError:
-            pass  # Column already exists
-
-        try:
-            conn.execute("ALTER TABLE contacts ADD COLUMN retry_count INTEGER DEFAULT 0")
-        except sqlite3.OperationalError:
-            pass  # Column already exists
+        columns_to_add = [
+            ("companies", "category", "TEXT DEFAULT 'open'"),
+            ("contacts", "retry_count", "INTEGER DEFAULT 0"),
+            ("contacts", "position", "TEXT"),
+            ("contacts", "department", "TEXT"),
+            ("contacts", "is_decision_maker", "INTEGER DEFAULT 0"),
+        ]
+        
+        for table, column, col_type in columns_to_add:
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
 
         conn.commit()
-    print("Database initialized")
+    print("✅ Database initialized with WAL mode")
 
 def import_json_contacts(json_path: Path):
     data = json.loads(json_path.read_text(encoding="utf-8"))
-
-    with sqlite3.connect(DB_PATH) as conn:
+    
+    # FIX: Add timeout and WAL mode
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+    
+    try:
         for item in data:
             domain = (item.get("domain") or "").strip()
             if not domain:
                 continue
-
-            # Insert company with default category
+            
             conn.execute(
                 """
                 INSERT OR IGNORE INTO companies 
@@ -902,17 +928,17 @@ def import_json_contacts(json_path: Path):
                 """,
                 (domain, item.get("organization") or item.get("company") or domain, 'open'),
             )
-
+            
             company_id = conn.execute(
                 "SELECT id FROM companies WHERE domain = ?",
                 (domain,),
             ).fetchone()[0]
-
+            
             for c in item.get("contacts", []):
                 email = (c.get("email") or "").strip()
                 if not email:
                     continue
-
+                
                 conn.execute(
                     """
                     INSERT OR IGNORE INTO contacts
@@ -927,8 +953,10 @@ def import_json_contacts(json_path: Path):
                         c.get("type"),
                     ),
                 )
-
+        
         conn.commit()
+    finally:
+        conn.close()
 
 
 def discover_companies_from_free_sources() -> List[Dict]:
