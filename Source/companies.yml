@@ -1,0 +1,338 @@
+# ===== LA-BASED VCs =====
+- name: Upfront Ventures
+  url: https://upfront.com
+  type: vc
+
+- name: Crosscut Ventures
+  url: https://crosscut.vc
+  type: vc
+
+- name: Mucker Capital
+  url: https://muckercapital.com
+  type: vc
+
+- name: Bonfire Ventures
+  url: https://bonfirevc.com
+  type: vc
+
+- name: TenOneTen Ventures
+  url: https://tenoneten.net
+  type: vc
+
+- name: Greycroft
+  url: https://greycroft.com
+  type: vc
+
+- name: Mantis VC
+  url: https://mantis.vc
+  type: vc
+
+- name: Wonder Ventures
+  url: https://wonder.vc
+  type: vc
+
+- name: Fika Ventures
+  url: https://fika.vc
+  type: vc
+
+- name: Ganas Ventures
+  url: https://ganasventures.com
+  type: vc
+
+- name: Entrada Ventures
+  url: https://entradaventures.com
+  type: vc
+
+- name: Wavemaker Partners
+  url: https://wavemaker.vc
+  type: vc
+
+- name: Karlin Ventures
+  url: https://karlinventures.com
+  type: vc
+
+- name: Clear Ventures
+  url: https://clearventures.com
+  type: vc
+
+- name: Halogen Ventures
+  url: https://halogenvc.com
+  type: vc
+
+- name: Backstage Capital
+  url: https://backstagecapital.com
+  type: vc
+
+- name: Novator Ventures
+  url: https://novator.co
+  type: vc
+
+- name: BAM Ventures
+  url: https://bamvc.com
+  type: vc
+
+- name: M13
+  url: https://m13.co
+  type: vc
+
+- name: Structural Capital
+  url: https://structuralcapital.com
+  type: vc
+
+# ===== LA ACCELERATORS / INCUBATORS =====
+- name: Amplify.LA
+  url: https://amplify.la
+  type: accelerator
+
+- name: Idealab
+  url: https://idealab.com
+  type: incubator
+
+- name: MuckerLab
+  url: https://muckerlab.com
+  type: accelerator
+
+- name: Launchpad LA
+  url: https://launchpad.la
+  type: accelerator
+
+- name: Plug and Play Tech Center
+  url: https://plugandplaytechcenter.com
+  type: accelerator
+
+- name: LA Cleantech Incubator
+  url: https://laincubator.org
+  type: incubator
+
+- name: Grid110
+  url: https://grid110.org
+  type: accelerator
+
+- name: Techstars LA
+  url: https://techstars.com
+  type: accelerator
+
+- name: EvoNexus
+  url: https://evonexus.org
+  type: incubator
+
+- name: Stubhub Center Ventures
+  url: https://aegleader.com
+  type: accelerator
+
+# ===== SF / BAY AREA VCs =====
+- name: Andreessen Horowitz
+  url: https://a16z.com
+  type: vc
+
+- name: Sequoia Capital
+  url: https://sequoiacap.com
+  type: vc
+
+- name: Benchmark
+  url: https://benchmark.com
+  type: vc
+
+- name: Founders Fund
+  url: https://foundersfund.com
+  type: vc
+
+- name: Lightspeed Venture Partners
+  url: https://lsvp.com
+  type: vc
+
+- name: General Catalyst
+  url: https://generalcatalyst.com
+  type: vc
+
+- name: Initialized Capital
+  url: https://initialized.com
+  type: vc
+
+- name: Bessemer Venture Partners
+  url: https://bvp.com
+  type: vc
+
+- name: Khosla Ventures
+  url: https://khoslaventures.com
+  type: vc
+
+- name: NEA
+  url: https://nea.com
+  type: vc
+
+- name: IVP
+  url: https://ivp.com
+  type: vc
+
+- name: Greylock Partners
+  url: https://greylock.com
+  type: vc
+
+- name: Mayfield Fund
+  url: https://mayfield.com
+  type: vc
+
+- name: True Ventures
+  url: https://trueventures.com
+  type: vc
+
+- name: Floodgate
+  url: https://floodgate.com
+  type: vc
+
+- name: First Round Capital
+  url: https://firstround.com
+  type: vc
+
+- name: Index Ventures
+  url: https://indexventures.com
+  type: vc
+
+- name: Accel
+  url: https://accel.com
+  type: vc
+
+- name: Kleiner Perkins
+  url: https://kleinerperkins.com
+  type: vc
+
+- name: GV
+  url: https://gv.com
+  type: vc
+
+- name: Sapphire Ventures
+  url: https://sapphireventures.com
+  type: vc
+
+- name: Norwest Venture Partners
+  url: https://nvp.com
+  type: vc
+
+- name: Scale Venture Partners
+  url: https://scalevp.com
+  type: vc
+
+- name: Merus Capital
+  url: https://meruscap.com
+  type: vc
+
+- name: Uncork Capital
+  url: https://uncork.vc
+  type: vc
+
+# ===== SF ACCELERATORS =====
+- name: Y Combinator
+  url: https://ycombinator.com
+  type: accelerator
+
+- name: 500 Global
+  url: https://500.co
+  type: accelerator
+
+- name: Alchemist Accelerator
+  url: https://alchemistaccelerator.com
+  type: accelerator
+
+- name: Runway
+  url: https://runway.team
+  type: accelerator
+
+# ===== NYC VCs =====
+- name: Union Square Ventures
+  url: https://usv.com
+  type: vc
+
+- name: Lerer Hippeau
+  url: https://lererhippeau.com
+  type: vc
+
+- name: RRE Ventures
+  url: https://rre.com
+  type: vc
+
+- name: Contour Venture Partners
+  url: https://contourventures.com
+  type: vc
+
+- name: Gotham Ventures
+  url: https://gothamvc.com
+  type: vc
+
+- name: Bowery Capital
+  url: https://bowerycap.com
+  type: vc
+
+- name: Primary Venture Partners
+  url: https://primaryvc.com
+  type: vc
+
+- name: Notation Capital
+  url: https://notation.vc
+  type: vc
+
+- name: Harlem Capital
+  url: https://harlemcapital.co
+  type: vc
+
+- name: Interplay Ventures
+  url: https://interplayvc.com
+  type: vc
+
+# ===== NYC ACCELERATORS =====
+- name: Techstars NYC
+  url: https://techstars.com
+  type: accelerator
+
+- name: ERA
+  url: https://eranyc.com
+  type: accelerator
+
+- name: Grand Central Tech
+  url: https://grandcentraltech.com
+  type: accelerator
+
+- name: Entrepreneurs Roundtable Accelerator
+  url: https://eranyc.com
+  type: accelerator
+
+# ===== NATIONAL / MULTI-CITY =====
+- name: Tiger Global
+  url: https://tigerglobal.com
+  type: vc
+
+- name: Insight Partners
+  url: https://insightpartners.com
+  type: vc
+
+- name: SoftBank Vision Fund
+  url: https://visionfund.com
+  type: vc
+
+- name: Coatue Management
+  url: https://coatue.com
+  type: vc
+
+- name: General Atlantic
+  url: https://generalatlantic.com
+  type: vc
+
+- name: Revolution
+  url: https://revolution.com
+  type: vc
+
+- name: Foundry Group
+  url: https://foundrygroup.com
+  type: vc
+
+- name: Spark Capital
+  url: https://sparkcapital.com
+  type: vc
+
+- name: Slow Ventures
+  url: https://slow.co
+  type: vc
+
+- name: Lowercase Capital
+  url: https://lowercase.com
+  type: vc

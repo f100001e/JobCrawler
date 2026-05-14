@@ -8,6 +8,7 @@ import sqlite3
 import json  # ← ADD THIS
 import os   # ← ADD THIS
 from dotenv import load_dotenv  # ← ADD THIS
+import csv
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -23,26 +24,27 @@ def show_menu():
     print("\nWhat would you like to do?")
     print("1. Run crawler (ALL sources - find companies & get emails)")
     print("2. Run crawler (LOCAL FILE only - companies.txt)")
-    print("3. Run mailer (send emails) - Normal SMTP")
-    print("4. Run mailer - Google Admin IPv4 only")
-    print("5. 📧 Test Email (preview formatting, forced IPv4)")  # New option
-    print("6. Import JSON contacts only")
-    print("7. Check database status")
-    print("8. Reset contacted status")
-    print("9. Exit")
+    print("3. Run crawler (YAML FILE only - companies.yaml)")
+    print("4. Run mailer (send emails) - Normal SMTP")
+    print("5. Run mailer - Google Admin IPv4 only")
+    print("6. 📧 Test Email (preview formatting, forced IPv4)")
+    print("7. Import JSON contacts only")
+    print("8. Check database status")
+    print("9. Reset contacted status")
+    print("10. Exit")
 
-    choice = input("\nEnter choice (1-9): ").strip()
+    choice = input("\nEnter choice (1-10): ").strip()
     return choice
 
 
-def run_crawler():
+def run_crawler_yaml_only():
     print("\n" + "=" * 60)
-    print("RUNNING CRAWLER")
+    print("RUNNING CRAWLER (YAML FILE ONLY)")
     print("=" * 60)
     try:
-        subprocess.run([sys.executable, "crawler.py"], check=True)
+        subprocess.run([sys.executable, "crawler.py", "--yaml-only"], check=True)
     except subprocess.CalledProcessError as e:
-        print(f"❌ Crawler failed with error: {e}")
+        print(f"❌ YAML-only crawler failed: {e}")
     except FileNotFoundError:
         print("❌ crawler.py not found!")
 
@@ -63,6 +65,18 @@ def run_crawler_local_only():
         print("❌ crawler.py not found!")
 
 
+def run_crawler():
+    print("\n" + "=" * 60)
+    print("RUNNING CRAWLER (ALL SOURCES)")
+    print("=" * 60)
+    try:
+        subprocess.run([sys.executable, "crawler.py"], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Crawler failed with error: {e}")
+    except FileNotFoundError:
+        print("❌ crawler.py not found!")
+
+        
 def run_mailer():
     print("\n" + "=" * 60)
     print("RUNNING MAILER")
@@ -290,8 +304,28 @@ def import_json_only():
     print(f"💾 Database: {DB_PATH.name}")
     print(f"{'=' * 60}")
 
-    # Show current stats
-    check_database()
+    if total_imported > 0:
+        csv_file = BASE_DIR / f"imported_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['email', 'name', 'domain', 'organization', 'type', 'imported_at'])
+            
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT c.email, c.name, co.domain, co.organization, c.type, c.contacted_at
+                FROM contacts c
+                JOIN companies co ON c.company_id = co.id
+                ORDER BY co.domain, c.email
+            """)
+            for row in cursor.fetchall():
+                writer.writerow(row)
+            conn.close()
+        
+        print(f"📄 CSV saved: {csv_file.name}")
+
+        # Show current stats
+        check_database()
 
 
 def check_database():
@@ -402,20 +436,23 @@ def main():
         elif choice == "2":
             run_crawler_local_only()  # Local file only
         elif choice == "3":
-            run_mailer()  # Normal mailer
+            run_crawler_yaml_only()
         elif choice == "4":
-            run_mailer_google_admin()  # Google Admin IPv4
-        elif choice == "5":  # New test email option
+            run_mailer()
+        elif choice == "5":
+            run_mailer_google_admin()
+        elif choice == "6":
             test_email_ipv4()
-        elif choice == "6":  # Renumbered
+        elif choice == "7":
             import_json_only()
-        elif choice == "7":  # Renumbered
+        elif choice == "8":
             check_database()
-        elif choice == "8":  # Renumbered
+        elif choice == "9":
             reset_contacts()
-        elif choice == "9":  # Renumbered
+        elif choice == "10":
             print("\nGoodbye!")
             break
+
         else:
             print("\nInvalid choice. Please try again.")
 

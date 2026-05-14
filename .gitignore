@@ -17,7 +17,7 @@ __pycache__/
 
 # Data files
 contacts_*.json
-target_companies.txt
+*.txt
 hunter_contacts_*.json
 *.csv
 
@@ -49,3 +49,6 @@ corporate_mailer_ppla.py
 corporate_crawler_ppla.py
 ppla_run.py
 setup_ppla_db.py
+
+# DB
+.yml

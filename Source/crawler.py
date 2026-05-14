@@ -7,6 +7,8 @@ import sqlite3
 import csv
 import random
 import re
+
+
 import yaml
 from dotenv import load_dotenv
 from pathlib import Path
@@ -85,15 +87,6 @@ def load_free_database_sources() -> Dict:
     },
 
     # ===== LOCAL FILES =====
-    "local_domains": {
-        "name": "Local Domains File",
-        "path": "target_companies.txt",
-        "type": "local_txt",
-        "enabled": True,
-        "parser": "plain_text",
-        "description": "Your own list of target domains",
-        "estimated_companies": "variable",
-    },
     "local_csv": {
         "name": "Local CSV File",
         "path": "companies.csv",
@@ -101,6 +94,15 @@ def load_free_database_sources() -> Dict:
         "enabled": False,
         "parser": "csv",
         "description": "Your own CSV with company data",
+        "estimated_companies": "variable",
+    },
+    "yaml_companies": {
+        "name": "YAML Companies File",
+        "path": "companies.yml",
+        "type": "local_yaml",
+        "enabled": True,
+        "parser": "yaml_companies",
+        "description": "Curated list of target company endpoints",
         "estimated_companies": "variable",
     },
 
@@ -426,6 +428,26 @@ def parse_plain_text(text: str) -> List[Dict]:
                     continue
     return companies
 
+def parse_yaml_companies(text: str) -> List[Dict]:
+    """Parse a local YAML file of company endpoints"""
+    companies = []
+    try:
+        data = yaml.safe_load(text)
+        if not isinstance(data, list):
+            print("    ⚠ companies.yaml must be a list of {name, url} entries")
+            return companies
+        for item in data:
+            if isinstance(item, dict) and item.get('url'):
+                companies.append({
+                    'name': item.get('name', ''),
+                    'url': item['url'],
+                    'source': 'yaml_companies',
+                    'metadata': {k: v for k, v in item.items() if k not in ('name', 'url')}
+                })
+    except Exception as e:
+        print(f"    ⚠ Error parsing companies.yaml: {e}")
+    return companies
+
 def parse_csv_content(csv_text: str) -> List[Dict]:
     """Parse CSV content"""
     companies = []
@@ -567,6 +589,7 @@ def fetch_from_free_source(source_id: str, source_config: Dict) -> List[Dict]:
             'yc_html': scrape_angel_list,
             'crunchbase_sitemap': parse_sitemap_urls,
             'betalist_scrape': scrape_product_hunt,
+            'yaml_companies': parse_yaml_companies,
         }
 
         parser = parsers.get(parser_name)
@@ -654,32 +677,25 @@ def fetch_from_free_source(source_id: str, source_config: Dict) -> List[Dict]:
 
 # ===== MAIN FUNCTIONS =====
 
-def discover_companies_from_local_file_only() -> List[Dict]:
-    """
-    Discover companies ONLY from local target_companies.txt file
-    Skips all other free sources
-    """
+def discover_companies_from_yaml_only() -> List[Dict]:
+    """Discover companies ONLY from companies.yaml"""
     print("\n" + "=" * 60)
-    print("DISCOVERING COMPANIES FROM LOCAL FILE ONLY")
+    print("DISCOVERING COMPANIES FROM YAML FILE ONLY")
     print("=" * 60 + "\n")
 
-    # Load only the local_domains source
     sources = load_free_database_sources()
 
-    if 'local_domains' not in sources:
-        print("❌ 'local_domains' source not found in configuration")
+    if 'yaml_companies' not in sources:
+        print("❌ 'yaml_companies' source not found in configuration")
         return []
 
-    source_config = sources['local_domains']
-    print(f"📄 Using source: {source_config.get('name', 'local_domains')}")
+    source_config = sources['yaml_companies']
+    print(f"📄 Using source: {source_config.get('name', 'yaml_companies')}")
 
-    # Fetch from local file only
-    companies = fetch_from_free_source('local_domains', source_config)
+    companies = fetch_from_free_source('yaml_companies', source_config)
 
-    # Deduplicate
     unique_companies = []
     seen_domains = set()
-
     for company in companies:
         try:
             domain = extract_domain(company['url'])
@@ -690,7 +706,7 @@ def discover_companies_from_local_file_only() -> List[Dict]:
             continue
 
     print(f"\n{'=' * 60}")
-    print(f"📊 LOCAL FILE COMPANIES FOUND: {len(unique_companies)}")
+    print(f"📊 YAML FILE COMPANIES FOUND: {len(unique_companies)}")
     print(f"{'=' * 60}\n")
 
     return unique_companies
@@ -967,6 +983,39 @@ def import_json_contacts(json_path: Path):
     finally:
         conn.close()
 
+def discover_companies_from_local_file_only() -> List[Dict]:
+    """Discover companies ONLY from target_companies.txt"""
+    print("\n" + "=" * 60)
+    print("DISCOVERING COMPANIES FROM LOCAL FILE ONLY")
+    print("=" * 60 + "\n")
+
+    sources = load_free_database_sources()
+
+    if 'local_domains' not in sources:
+        print("❌ 'local_domains' source not found in configuration")
+        return []
+
+    source_config = sources['local_domains']
+    print(f"📄 Using source: {source_config.get('name', 'local_domains')}")
+
+    companies = fetch_from_free_source('local_domains', source_config)
+
+    unique_companies = []
+    seen_domains = set()
+    for company in companies:
+        try:
+            domain = extract_domain(company['url'])
+            if domain not in seen_domains:
+                seen_domains.add(domain)
+                unique_companies.append(company)
+        except:
+            continue
+
+    print(f"\n{'=' * 60}")
+    print(f"📊 LOCAL FILE COMPANIES FOUND: {len(unique_companies)}")
+    print(f"{'=' * 60}\n")
+
+    return unique_companies
 
 def discover_companies_from_free_sources() -> List[Dict]:
     """
@@ -1083,6 +1132,26 @@ if __name__ == "__main__":
 
         print("\n" + "=" * 60)
         print("LOCAL FILE CRAWLER COMPLETE")
+        print("=" * 60)
+
+    elif len(sys.argv) > 1 and sys.argv[1] == "--yaml-only":
+        print("\n" + "=" * 60)
+        print("YAML FILE ONLY MODE")
+        print("=" * 60)
+
+        init_db()
+
+        companies = discover_companies_from_yaml_only()
+
+        if not companies:
+            print("No companies found in companies.yaml. Exiting.")
+            sys.exit(0)
+
+        max_to_process = min(50, len(companies))
+        process_companies(companies, max_companies=max_to_process)
+
+        print("\n" + "=" * 60)
+        print("YAML FILE CRAWLER COMPLETE")
         print("=" * 60)
 
     else:

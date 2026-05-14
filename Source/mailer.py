@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 import sys
 import socket
 import argparse
+import csv
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
@@ -26,6 +27,7 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 FROM_EMAIL = os.getenv("FROM_EMAIL", SMTP_USER)
+CC_EMAIL = os.getenv("CC_EMAIL", "").strip()
 HELO_DOMAIN = os.getenv("HELO_DOMAIN", "presspassla.com")  # For whitelist identification
 
 rp = Path(os.getenv("RESUME_PATH", "resume.pdf"))
@@ -39,23 +41,24 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def build_message(to_email: str, subject: str, body: str) -> EmailMessage:
+def build_message(to_email: str, subject: str, body: str, cc: bool = False) -> EmailMessage:
     msg = EmailMessage()
     msg["From"] = FROM_EMAIL
     msg["To"] = to_email
     msg["Subject"] = subject
     msg.set_content(body)
 
-    if not RESUME_PATH.exists():
-        raise FileNotFoundError(f"Resume not found: {RESUME_PATH}")
-
-    data = RESUME_PATH.read_bytes()
-    msg.add_attachment(
-        data,
-        maintype="application",
-        subtype="pdf",
-        filename=RESUME_PATH.name
-    )
+    if cc and CC_EMAIL:
+        msg["Cc"] = CC_EMAIL
+    
+    if RESUME_PATH and not RESUME_PATH.is_dir() and RESUME_PATH.exists():
+        data = RESUME_PATH.read_bytes()
+        msg.add_attachment(
+            data,
+            maintype="application",
+            subtype="pdf",
+            filename=RESUME_PATH.name
+        )
     return msg
 
 
@@ -89,32 +92,34 @@ def dismiss_failed(conn: sqlite3.Connection, contact_id: int, err: str):
         WHERE id = ?
     """, (utc_now_iso(), (err or "")[:500], contact_id))
 
+def build_body(first: str, domain: str) -> str:
+    greeting = f"Hi {first}," if first else "Hi,"
+    return f"""{greeting}
 
+I'll keep this brief — PPLA Social + PR is a full-service PR and social media agency based in Hollywood. We've been building stories in this city for over a decade, with a media arm at PressPassLA.com that gives clients genuine editorial reach.
+
+We work across entertainment, lifestyle, tech, health, and philanthropy — and we're good at making early-stage companies and the people behind them visible.
+
+If that's relevant to you, let's have a quick conversation.
+
+--
+Jennifer Buonantony, CEO
+PressPassLA.com (News) | PPLASocial.com (Agency)
+c. 323.496.1976
+jennifer@presspassla.com
+"""
 def default_body(domain: str, category: str | None, name: str | None = None, email_type: str | None = None) -> str:
-    cat = (category or "open").strip().lower()
-    if cat not in {"open", "general", "any"}:
-        cat = "open"
+    first = None
+    if (email_type or "").lower() != "generic":
+        if name and name.strip() and name.strip().upper() != "N/A":
+            first = name.strip().split()[0]
+    return build_body(first, domain)
 
     # Don't personalize generic inboxes (jobs@, info@, etc.) IMPORTANT LOGIC
     first = None
     if (email_type or "").lower() != "generic":
         if name and name.strip() and name.strip().upper() != "N/A":
             first = name.strip().split()[0]
-
-    greeting = f"Hello {first}," if first else "Hello,"
-    return f"""{greeting}
-
-I'm reaching out regarding {cat} roles at {domain}.
-
-Resume attached. If there's a better contact or process, I'd appreciate a pointer. 
-
-Best,
-FLE
-
-GitHub: github.com/f100001e
-LinkedIn: linkedin.com/in/franklangelliott
-Columns: sxhx.news
-"""
 
 
 def check_and_import_json_if_empty():
@@ -275,15 +280,16 @@ def run_mailer():
         try:
             sent = 0
             failed = 0
+            sent_rows = []
             for i, r in enumerate(rows, 1):
                 contact_id, to_email, name, domain, organization = r
                 email_type = None  # not available from this query
                 category = "Open"
-                subject = f"Application: {category} roles"
+                subject = "PPLA Social + PR — Introduction"
                 body = default_body(domain, category, name=name, email_type=email_type)
 
                 try:
-                    msg = build_message(to_email, subject, body)
+                    msg = build_message(to_email, subject, body, cc=(i == 1))
 
                     if DRY_RUN:
                         print(f"[DRY RUN {i}/{len(rows)}] Would send -> {to_email} ({domain})")
@@ -298,6 +304,7 @@ def run_mailer():
                     mark_sent(conn, contact_id)
                     conn.commit()
                     sent += 1
+                    sent_rows.append([to_email, name, domain, organization, utc_now_iso()])
                     print(f"✅ Sent [{sent}/{len(rows)}] -> {to_email}")
 
                 except Exception as e:
@@ -324,6 +331,15 @@ def run_mailer():
         print(f"📋 Total: {sent + failed}/{len(rows)}")
         if sent + failed < len(rows):
             print(f"⚠ Skipped: {len(rows) - (sent + failed)}")
+
+        if sent > 0:
+            csv_file = BASE_DIR / f"sent_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+            with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(['email', 'name', 'domain', 'organization', 'sent_at'])
+                for row in sent_rows:
+                    writer.writerow(row)
+            print(f"📄 CSV saved: {csv_file.name}")
 
 
 # ===== GOOGLE ADMIN IPv4 OPTION =====
@@ -428,23 +444,8 @@ def send_test_email(test_email):
         server.login(SMTP_USER, SMTP_PASS)
 
     # Build test message
-    subject = "TEST: Resume Application - Please Confirm Delivery"
-    body = f"""Hello,
-
-TEST
-
-TO: {test_email}
-TIME: {utc_now_iso()}
-MODE: {'IPv4 Forced' if google_admin_mode else 'Normal'}
-
-This test confirms that:
-✅ SMTP connection is working
-✅ Resume attachment is properly formatted
-✅ Email can be delivered to this address
-
-TEST
-
-"""
+    subject = "PPLA Social + PR — Introduction"
+    body = build_body("", "")
 
     try:
         msg = build_message(test_email, subject, body)
