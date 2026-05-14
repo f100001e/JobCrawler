@@ -19,7 +19,8 @@ load_dotenv(BASE_DIR / ".env")
 
 DB_PATH = (BASE_DIR / os.getenv("DB_PATH", "metacrawler.db")).resolve()
 print("USING DB:", DB_PATH)
-DATABASE_SOURCES_FILE = BASE_DIR / os.getenv("DATABASE_SOURCES_FILE", "free_databases.yaml")
+_dsf = os.getenv("DATABASE_SOURCES_FILE", "").strip()
+DATABASE_SOURCES_FILE = (BASE_DIR / _dsf) if _dsf else None
 
 HUNTER_API_KEY = os.getenv("HUNTER_API_KEY", "")
 USER_AGENT = "MetaCrawler/1.0 (+polite; research)"
@@ -36,6 +37,12 @@ DECISION_MAKER_KEYWORDS = (
 )
 HR_KEYWORDS = ("hr", "human resources", "recruiting", "talent", "people", "careers", "jobs", "hiring", "director")
 ENG_KEYWORDS = ("engineering", "engineer", "eng", "dev", "developer")
+
+GENERIC_PREFIXES = {"jobs", "info", "service", "support", "hello", "contact", "team", "admin", "noreply", "no-reply"}
+
+def is_generic_email(email: str) -> bool:
+    prefix = email.split("@")[0].lower().split("+")[0]
+    return prefix in GENERIC_PREFIXES
 
 # ===== FREE PUBLIC DATABASE SOURCES =====
 def load_free_database_sources() -> Dict:
@@ -146,7 +153,7 @@ def load_free_database_sources() -> Dict:
 }
 
     # Apply YAML overrides
-    if DATABASE_SOURCES_FILE.exists():
+    if DATABASE_SOURCES_FILE and DATABASE_SOURCES_FILE.exists():
         try:
             with open(DATABASE_SOURCES_FILE, "r", encoding="utf-8") as f:
                 overrides = yaml.safe_load(f) or {}
@@ -752,6 +759,8 @@ def extract_ranked_contacts(hunter_response: dict, domain: str) -> tuple[str, li
         # Only include decision makers, HR, engineering, and generic contacts
         # (exclude priority 4 - others)
         if priority > 3:
+            continue
+        if is_generic_email(email_val):
             continue
 
         name = f"{(e.get('first_name') or '').strip()} {(e.get('last_name') or '').strip()}".strip() or "N/A"
