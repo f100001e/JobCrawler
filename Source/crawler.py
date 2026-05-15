@@ -701,6 +701,12 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 print(f"    ⚠ Missing APOLLO_API_KEY")
                 return []
 
+            # Load existing domains to avoid re-enriching
+            conn_check = sqlite3.connect(DB_PATH, timeout=30.0)
+            existing_domains = {row[0] for row in conn_check.execute("SELECT domain FROM companies").fetchall()}
+            conn_check.close()
+            print(f"    📋 {len(existing_domains)} domains already in DB — will skip")
+
             apollo_headers = {
                 **HEADERS,
                 "X-Api-Key": APOLLO_API_KEY,
@@ -716,6 +722,8 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                     "person_titles": ["founder", "CEO", "partner", "managing director"],
                     "person_locations": ["United States"],
                     "contact_email_status": ["verified"],
+                    "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],  # small to mid-size
+                    "organization_latest_funding_stage_cd": ["seed", "series_a", "series_b"],  # funded but early
                     "per_page": per_page,
                     "page": page,
                 }
@@ -741,6 +749,17 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                     person_id = person.get('id')
                     if not person_id:
                         continue
+
+                    primary_domain = (person.get('organization') or {}).get('primary_domain', '')
+                    #check if primary domain is already in DB before enriching to save API calls and avoid duplicates
+                    if primary_domain:
+                        try:
+                            check_domain = extract_domain(f"https://{primary_domain}")
+                            if check_domain in existing_domains:
+                                print(f"    ⏭ {check_domain} already in DB")
+                                continue
+                        except:
+                            pass
 
                     enrich_response = requests.post(
                         "https://api.apollo.io/api/v1/people/match",
@@ -1102,9 +1121,10 @@ def import_json_contacts(json_path: Path):
         conn.close()
 
 def process_companies_apollo(companies: List[Dict], max_companies: int = None):
+    """Process Apollo results directly into DB — no Hunter call needed"""
     if max_companies is None:
         max_companies = MAX_COMPANIES_PER_DAY
-    """Process Apollo results directly into DB — no Hunter call needed"""
+
     print(f"\n{'=' * 60}")
     print(f"PROCESSING UP TO {max_companies} APOLLO CONTACTS")
     print(f"{'=' * 60}\n")
