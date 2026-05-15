@@ -707,55 +707,71 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 "Content-Type": "application/json",
             }
 
-            search_payload = {
-                "person_titles": ["founder", "CEO", "partner", "managing director"],
-                "person_locations": ["United States"],
-                "contact_email_status": ["verified"],
-                "per_page": min(MAX_COMPANIES_PER_DAY, 100),
-                "page": 1,
-            }
-
-            response = requests.post(url, json=search_payload, headers=apollo_headers, timeout=30)
-            if response.status_code != 200:
-                print(f"    ✗ HTTP {response.status_code}: {response.text}")
-                return []
-
-            data = response.json()
-            people = data.get('people', [])
-            print(f"    🔍 Found {len(people)} people, enriching for emails...")
-
             enriched = []
-            for person in people:
-                person_id = person.get('id')
-                if not person_id:
-                    continue
+            page = 1
+            per_page = 25  # Apollo plan limit per page
 
-                enrich_response = requests.post(
-                    "https://api.apollo.io/api/v1/people/match",
-                    json={"id": person_id, "reveal_personal_emails": True},
-                    headers=apollo_headers,
-                    timeout=30
-                )
+            while len(enriched) < MAX_COMPANIES_PER_DAY:
+                search_payload = {
+                    "person_titles": ["founder", "CEO", "partner", "managing director"],
+                    "person_locations": ["United States"],
+                    "contact_email_status": ["verified"],
+                    "per_page": per_page,
+                    "page": page,
+                }
 
-                if enrich_response.status_code != 200:
-                    continue
+                print(f"    🔍 Fetching page {page}...")
+                response = requests.post(url, json=search_payload, headers=apollo_headers, timeout=30)
+                if response.status_code != 200:
+                    print(f"    ✗ HTTP {response.status_code}: {response.text}")
+                    break
 
-                enriched_person = enrich_response.json().get('person', {})
-                email = enriched_person.get('email', '')
-                if email:
-                    org = enriched_person.get('organization') or {}
-                    enriched.append({
-                        'first_name': enriched_person.get('first_name', ''),
-                        'last_name': enriched_person.get('last_name', ''),
-                        'email': email,
-                        'title': enriched_person.get('title', ''),
-                        'organization': org,
-                    })
-                    print(f"    ✓ {email}")
+                data = response.json()
+                people = data.get('people', [])
+                if not people:
+                    print(f"    ✓ No more results at page {page}")
+                    break
 
-                time.sleep(0.5)
+                print(f"    🔍 Page {page}: {len(people)} people, enriching...")
+
+                for person in people:
+                    if len(enriched) >= MAX_COMPANIES_PER_DAY:
+                        break
+
+                    person_id = person.get('id')
+                    if not person_id:
+                        continue
+
+                    enrich_response = requests.post(
+                        "https://api.apollo.io/api/v1/people/match",
+                        json={"id": person_id, "reveal_personal_emails": True},
+                        headers=apollo_headers,
+                        timeout=30
+                    )
+
+                    if enrich_response.status_code != 200:
+                        continue
+
+                    enriched_person = enrich_response.json().get('person', {})
+                    email = enriched_person.get('email', '')
+                    if email:
+                        org = enriched_person.get('organization') or {}
+                        enriched.append({
+                            'first_name': enriched_person.get('first_name', ''),
+                            'last_name': enriched_person.get('last_name', ''),
+                            'email': email,
+                            'title': enriched_person.get('title', ''),
+                            'organization': org,
+                        })
+                        print(f"    ✓ [{len(enriched)}/{MAX_COMPANIES_PER_DAY}] {email}")
+
+                    time.sleep(0.5)
+
+                page += 1
+                time.sleep(1.0)  # polite delay between pages
 
             companies = parser({'people': enriched})
+
 
         else:  # JSON
             params = source_config.get('params', {})
