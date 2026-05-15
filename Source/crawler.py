@@ -28,6 +28,9 @@ HUNTER_API_KEY = os.getenv("HUNTER_API_KEY", "")
 USER_AGENT = "MetaCrawler/1.0 (+polite; research)"
 CRAWL_DELAY = float(os.getenv("CRAWL_DELAY_SECONDS", "2.0"))  # Be extra polite with free sources
 
+MAX_COMPANIES_PER_DAY = int(os.getenv("MAX_COMPANIES_PER_DAY", "50"))
+MAX_CONTACTS_PER_COMPANY = int(os.getenv("MAX_CONTACTS_PER_COMPANY", "10"))
+
 APOLLO_API_KEY = os.getenv("APOLLO_API_KEY", "")
 
 HEADERS = {"User-Agent": USER_AGENT, "Accept": "application/json"}
@@ -235,27 +238,23 @@ def parse_apollo_people(data: Any) -> List[Dict]:
 
     for person in data.get('people', []) or []:
         org = person.get('organization') or {}
-        url = org.get('website_url') or ''
-        name = org.get('name') or ''
-        
-        # Debug first person
-        if not companies and not url:
-            print(f"    🔍 Sample person: {person.get('first_name')} {person.get('last_name')}")
-            print(f"    🔍 Org keys: {list(org.keys()) if org else 'NO ORG'}")
-            print(f"    🔍 Email: {person.get('email')}")
-        
-        if not url:
+        email = person.get('email', '')
+        url = org.get('website_url') or org.get('primary_domain') or ''
+
+        if not email:
             continue
-        
+
+        if not url and '@' in email:
+            url = 'https://' + email.split('@')[1]
+
         companies.append({
-            'name': name,
+            'name': org.get('name', ''),
             'url': url if url.startswith('http') else f"https://{url}",
             'source': 'apollo_people',
             'metadata': {
                 'contact_name': f"{person.get('first_name', '')} {person.get('last_name', '')}".strip(),
-                'contact_email': person.get('email', ''),
+                'contact_email': email,
                 'contact_title': person.get('title', ''),
-                'funding_stage': org.get('latest_funding_stage', ''),
             }
         })
     return companies
@@ -600,6 +599,7 @@ def scrape_indie_hackers(html: str) -> List[Dict]:
 
     return companies
 
+
 # ===== DATABASE FETCHER =====
 
 def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
@@ -616,7 +616,6 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
         source_type = source_config.get('type', 'json')
         parser_name = source_config.get('parser', 'json')
 
-        # Map parser names to functions
         parsers = {
             'cncf_landscape': parse_cncf_landscape,
             'github_markdown': parse_github_markdown,
@@ -624,7 +623,6 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
             'plain_text': parse_plain_text,
             'csv': parse_csv_content,
             'rss_feed': parse_rss_feed,
-            # Legacy / disabled but kept to avoid KeyErrors
             'yc_json': parse_yc_json,
             'edgar_companies': parse_edgar_companies,
             'opencorporates': parse_opencorporates,
@@ -652,7 +650,6 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
 
             if file_path.exists():
                 content = file_path.read_text(encoding='utf-8', errors='ignore')
-
                 if source_type == 'local_json':
                     try:
                         data = json.loads(content)
@@ -661,7 +658,6 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                         companies = parser(content)
                 else:
                     companies = parser(content)
-
                 print(f"    → Found {len(companies)} companies")
                 return companies
             else:
@@ -674,10 +670,9 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
             print(f"    ⚠ No URL specified")
             return []
 
-        # Make request with polite delays
         time.sleep(random.uniform(1.0, 2.0))
 
-        if source_type == 'xml' or source_type == 'rss':
+        if source_type in ('xml', 'rss'):
             response = requests.get(url, headers=HEADERS, timeout=30)
             if response.status_code == 200:
                 companies = parser(response.text)
@@ -692,7 +687,7 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
             else:
                 print(f"    ✗ HTTP {response.status_code}")
                 return []
-        
+
         elif source_type == 'yaml_remote':
             response = requests.get(url, headers=HEADERS, timeout=30)
             if response.status_code == 200:
@@ -700,7 +695,7 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
             else:
                 print(f"    ✗ HTTP {response.status_code}")
                 return []
-        
+
         elif source_type == 'apollo':
             if not APOLLO_API_KEY:
                 print(f"    ⚠ Missing APOLLO_API_KEY")
@@ -712,32 +707,59 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 "Content-Type": "application/json",
             }
 
-            payload = {
-                "contact_email_status": ["verified", "likely to engage"],
-                "organization_locations": ["United States"],
+            search_payload = {
                 "person_titles": ["founder", "CEO", "partner", "managing director"],
+                "person_locations": ["United States"],
+                "contact_email_status": ["verified"],
+                "per_page": min(MAX_COMPANIES_PER_DAY, 100),
                 "page": 1,
-                "per_page": 100,
             }
 
-            response = requests.post(url, json=payload, headers=apollo_headers, timeout=30)
-            if response.status_code == 200:
-                try:
-                    data = response.json()
-                    print(f"    🔍 Raw response keys: {list(data.keys())}")
-                    print(f"    🔍 People count: {len(data.get('people', []))}")
-                    print(f"    🔍 Pagination: {data.get('pagination', {})}")
-                    companies = parser(data)
-                except json.JSONDecodeError:
-                    print(f"    ✗ JSON decode error")
-                    return []
-            else:
+            response = requests.post(url, json=search_payload, headers=apollo_headers, timeout=30)
+            if response.status_code != 200:
                 print(f"    ✗ HTTP {response.status_code}: {response.text}")
                 return []
+
+            data = response.json()
+            people = data.get('people', [])
+            print(f"    🔍 Found {len(people)} people, enriching for emails...")
+
+            enriched = []
+            for person in people:
+                person_id = person.get('id')
+                if not person_id:
+                    continue
+
+                enrich_response = requests.post(
+                    "https://api.apollo.io/api/v1/people/match",
+                    json={"id": person_id, "reveal_personal_emails": True},
+                    headers=apollo_headers,
+                    timeout=30
+                )
+
+                if enrich_response.status_code != 200:
+                    continue
+
+                enriched_person = enrich_response.json().get('person', {})
+                email = enriched_person.get('email', '')
+                if email:
+                    org = enriched_person.get('organization') or {}
+                    enriched.append({
+                        'first_name': enriched_person.get('first_name', ''),
+                        'last_name': enriched_person.get('last_name', ''),
+                        'email': email,
+                        'title': enriched_person.get('title', ''),
+                        'organization': org,
+                    })
+                    print(f"    ✓ {email}")
+
+                time.sleep(0.5)
+
+            companies = parser({'people': enriched})
+
         else:  # JSON
             params = source_config.get('params', {})
             response = requests.get(url, params=params, headers=HEADERS, timeout=30)
-
             if response.status_code == 200:
                 try:
                     data = response.json()
@@ -750,10 +772,10 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
 
         print(f"    → Found {len(companies)} companies")
         return companies
-
+    
     except Exception as e:
-        print(f"    ✗ Error: {e}")
-        return []
+            print(f"    ✗ Error: {e}")
+            return []
 
 # ===== MAIN FUNCTIONS =====
 
@@ -1063,7 +1085,9 @@ def import_json_contacts(json_path: Path):
     finally:
         conn.close()
 
-def process_companies_apollo(companies: List[Dict], max_companies: int = 50):
+def process_companies_apollo(companies: List[Dict], max_companies: int = None):
+    if max_companies is None:
+        max_companies = MAX_COMPANIES_PER_DAY
     """Process Apollo results directly into DB — no Hunter call needed"""
     print(f"\n{'=' * 60}")
     print(f"PROCESSING UP TO {max_companies} APOLLO CONTACTS")
@@ -1119,6 +1143,14 @@ def process_companies_apollo(companies: List[Dict], max_companies: int = 50):
                 company_id = conn.execute(
                     "SELECT id FROM companies WHERE domain = ?", (domain,)
                 ).fetchone()[0]
+
+                # Enforce MAX_CONTACTS_PER_COMPANY
+                existing_count = conn.execute(
+                    "SELECT COUNT(*) FROM contacts WHERE company_id = ?", (company_id,)
+                ).fetchone()[0]
+                if existing_count >= MAX_CONTACTS_PER_COMPANY:
+                    print(f"    ⏭ Max contacts reached for {domain}")
+                    continue
 
                 # Insert contact directly
                 conn.execute(
@@ -1351,7 +1383,7 @@ if __name__ == "__main__":
             print("No contacts returned from Apollo. Exiting.")
             sys.exit(0)
 
-        process_companies_apollo(companies, max_companies=100)
+        process_companies_apollo(companies, max_companies=MAX_COMPANIES_PER_DAY)
 
         print("\n" + "=" * 60)
         print("APOLLO CRAWLER COMPLETE")

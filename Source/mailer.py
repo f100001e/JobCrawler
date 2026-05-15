@@ -33,8 +33,8 @@ HELO_DOMAIN = os.getenv("HELO_DOMAIN", "presspassla.com")  # For whitelist ident
 rp = Path(os.getenv("RESUME_PATH", "resume.pdf"))
 RESUME_PATH = rp if rp.is_absolute() else (BASE_DIR / rp).resolve()
 
-SEND_DELAY = float(os.getenv("SEND_DELAY_SECONDS"))
-MAX_PER_RUN = int(os.getenv("MAX_EMAILS_PER_RUN"))
+MAX_EMAILS_PER_RUN = int(os.getenv("MAX_EMAILS_PER_RUN", "100"))
+SEND_DELAY_SECONDS = float(os.getenv("SEND_DELAY_SECONDS", "2.0"))
 
 
 def utc_now_iso() -> str:
@@ -218,7 +218,7 @@ def run_mailer():
         raise FileNotFoundError(f"Resume not found: {RESUME_PATH}")
 
     with sqlite3.connect(DB_PATH) as conn:
-        rows = get_one_contact_per_domain(conn)[:MAX_PER_RUN]
+        rows = get_one_contact_per_domain(conn)[:MAX_EMAILS_PER_RUN]
         if not rows:
             print("No pending contacts to email.")
             return
@@ -330,8 +330,8 @@ def run_mailer():
 
                 # Add delay between emails
                 if i < len(rows):  # Don't wait after the last one
-                    print(f"⏳ Waiting {SEND_DELAY} seconds...")
-                    time.sleep(SEND_DELAY)
+                    print(f"⏳ Waiting {SEND_DELAY_SECONDS} seconds...")
+                    time.sleep(SEND_DELAY_SECONDS)
 
         finally:
             if server is not None:
