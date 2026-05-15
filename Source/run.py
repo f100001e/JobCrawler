@@ -5,9 +5,9 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 import sqlite3
-import json  # ← ADD THIS
-import os   # ← ADD THIS
-from dotenv import load_dotenv  # ← ADD THIS
+import json
+import os
+from dotenv import load_dotenv
 import csv
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -25,15 +25,16 @@ def show_menu():
     print("1. Run crawler (ALL sources - find companies & get emails)")
     print("2. Run crawler (LOCAL FILE only - companies.txt)")
     print("3. Run crawler (YAML FILE only - companies.yaml)")
-    print("4. Run mailer (send emails) - Normal SMTP")
-    print("5. Run mailer - Google Admin IPv4 only")
-    print("6. 📧 Test Email (preview formatting, forced IPv4)")
-    print("7. Import JSON contacts only")
-    print("8. Check database status")
-    print("9. Reset contacted status")
-    print("10. Exit")
+    print("4. Run crawler (APOLLO only - direct contact import)")
+    print("5. Run mailer (send emails) - Normal SMTP")
+    print("6. Run mailer - Google Admin IPv4 only")
+    print("7. 📧 Test Email (preview formatting, forced IPv4)")
+    print("8. Import JSON contacts only")
+    print("9. Check database status")
+    print("10. Reset contacted status")
+    print("11. Exit")
 
-    choice = input("\nEnter choice (1-10): ").strip()
+    choice = input("\nEnter choice (1-11): ").strip()
     return choice
 
 
@@ -45,6 +46,17 @@ def run_crawler_yaml_only():
         subprocess.run([sys.executable, "crawler.py", "--yaml-only"], check=True)
     except subprocess.CalledProcessError as e:
         print(f"❌ YAML-only crawler failed: {e}")
+    except FileNotFoundError:
+        print("❌ crawler.py not found!")
+
+def run_crawler_apollo_only():
+    print("\n" + "=" * 60)
+    print("RUNNING CRAWLER (APOLLO ONLY)")
+    print("=" * 60)
+    try:
+        subprocess.run([sys.executable, "crawler.py", "--apollo-only"], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Apollo-only crawler failed: {e}")
     except FileNotFoundError:
         print("❌ crawler.py not found!")
 
@@ -324,8 +336,8 @@ def import_json_only():
         
         print(f"📄 CSV saved: {csv_file.name}")
 
-        # Show current stats
-        check_database()
+    # Show current stats
+    check_database()
 
 
 def check_database():
@@ -438,18 +450,20 @@ def main():
         elif choice == "3":
             run_crawler_yaml_only()
         elif choice == "4":
-            run_mailer()
+            run_crawler_apollo_only()
         elif choice == "5":
-            run_mailer_google_admin()
+            run_mailer()
         elif choice == "6":
-            test_email_ipv4()
+            run_mailer_google_admin()
         elif choice == "7":
-            import_json_only()
+            test_email_ipv4()
         elif choice == "8":
-            check_database()
+            import_json_only()
         elif choice == "9":
-            reset_contacts()
+            check_database()
         elif choice == "10":
+            reset_contacts()
+        elif choice == "11":
             print("\nGoodbye!")
             break
 

@@ -28,6 +28,8 @@ HUNTER_API_KEY = os.getenv("HUNTER_API_KEY", "")
 USER_AGENT = "MetaCrawler/1.0 (+polite; research)"
 CRAWL_DELAY = float(os.getenv("CRAWL_DELAY_SECONDS", "2.0"))  # Be extra polite with free sources
 
+APOLLO_API_KEY = os.getenv("APOLLO_API_KEY", "")
+
 HEADERS = {"User-Agent": USER_AGENT, "Accept": "application/json"}
 
 # Near HR_KEYWORDS and ENG_KEYWORDS, add:
@@ -48,17 +50,28 @@ def is_generic_email(email: str) -> bool:
 
 # ===== FREE PUBLIC DATABASE SOURCES =====
 def load_free_database_sources() -> Dict:
-    """Load FREE public database sources that require NO API keys.
+    """Load database sources with or without API keys.
     YAML is treated as overrides (enabled/path/params/etc) unless it defines a brand-new source.
     """
 
     defaults = {
-    # ===== GITHUB DATASETS (WORKING) =====
+    # ===== ALL DATASETS (WORKING) =====
+
+    "apollo_people": {
+        "name": "Apollo.io People Search",
+        "url": "https://api.apollo.io/api/v1/mixed_people/api_search",
+        "type": "apollo",
+        "enabled": False,
+        "parser": "apollo_people",
+        "description": "Apollo.io verified contacts at funded companies",
+        "estimated_companies": 500,
+    },
+
     "github_startup_resources": {
         "name": "GitHub Startup Resources",
         "url": "https://raw.githubusercontent.com/mmccaff/PlacesToPostYourStartup/master/README.md",
         "type": "markdown",
-        "enabled": True,
+        "enabled": False,
         "parser": "github_markdown",
         "description": "Places to post your startup",
         "estimated_companies": 200,
@@ -69,7 +82,7 @@ def load_free_database_sources() -> Dict:
         "name": "CNCF Landscape",
         "url": "https://raw.githubusercontent.com/cncf/landscape/refs/heads/master/landscape.yml",
         "type": "yaml_remote",
-        "enabled": True,
+        "enabled": False,
         "parser": "cncf_landscape",
         "description": "Cloud Native Computing Foundation member companies",
         "estimated_companies": 800,
@@ -80,7 +93,7 @@ def load_free_database_sources() -> Dict:
         "name": "Hacker News Who is Hiring",
         "url": "https://hn.algolia.com/api/v1/search?tags=story,author_whoishiring",
         "type": "json",
-        "enabled": True,
+        "enabled": False,
         "parser": "hn_whoishiring",
         "description": "HN Who is Hiring posts",
         "estimated_companies": 1000,
@@ -100,7 +113,7 @@ def load_free_database_sources() -> Dict:
         "name": "YAML Companies File",
         "path": "companies.yml",
         "type": "local_yaml",
-        "enabled": True,
+        "enabled": False,
         "parser": "yaml_companies",
         "description": "Curated list of target company endpoints",
         "estimated_companies": "variable",
@@ -212,7 +225,40 @@ def extract_domain(url: str) -> str:
     except Exception as e:
         raise ValueError(f"Error extracting domain from {url}: {e}")
 
-# ===== FREE PARSER FUNCTIONS (NO API KEYS NEEDED) =====
+
+# ===== PARSER FUNCTIONS =====
+
+def parse_apollo_people(data: Any) -> List[Dict]:
+    companies = []
+    if not isinstance(data, dict):
+        return companies
+
+    for person in data.get('people', []) or []:
+        org = person.get('organization') or {}
+        url = org.get('website_url') or ''
+        name = org.get('name') or ''
+        
+        # Debug first person
+        if not companies and not url:
+            print(f"    🔍 Sample person: {person.get('first_name')} {person.get('last_name')}")
+            print(f"    🔍 Org keys: {list(org.keys()) if org else 'NO ORG'}")
+            print(f"    🔍 Email: {person.get('email')}")
+        
+        if not url:
+            continue
+        
+        companies.append({
+            'name': name,
+            'url': url if url.startswith('http') else f"https://{url}",
+            'source': 'apollo_people',
+            'metadata': {
+                'contact_name': f"{person.get('first_name', '')} {person.get('last_name', '')}".strip(),
+                'contact_email': person.get('email', ''),
+                'contact_title': person.get('title', ''),
+                'funding_stage': org.get('latest_funding_stage', ''),
+            }
+        })
+    return companies
 
 def parse_yc_json(data: Any) -> List[Dict]:
     """Parse Y Combinator JSON export"""
@@ -556,7 +602,7 @@ def scrape_indie_hackers(html: str) -> List[Dict]:
 
 # ===== DATABASE FETCHER =====
 
-def fetch_from_free_source(source_id: str, source_config: Dict) -> List[Dict]:
+def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
     """Fetch companies from a free source"""
     name = source_config.get('name', source_id)
     enabled = source_config.get('enabled', True)
@@ -590,6 +636,7 @@ def fetch_from_free_source(source_id: str, source_config: Dict) -> List[Dict]:
             'crunchbase_sitemap': parse_sitemap_urls,
             'betalist_scrape': scrape_product_hunt,
             'yaml_companies': parse_yaml_companies,
+            'apollo_people': parse_apollo_people,
         }
 
         parser = parsers.get(parser_name)
@@ -653,7 +700,40 @@ def fetch_from_free_source(source_id: str, source_config: Dict) -> List[Dict]:
             else:
                 print(f"    ✗ HTTP {response.status_code}")
                 return []
+        
+        elif source_type == 'apollo':
+            if not APOLLO_API_KEY:
+                print(f"    ⚠ Missing APOLLO_API_KEY")
+                return []
 
+            apollo_headers = {
+                **HEADERS,
+                "X-Api-Key": APOLLO_API_KEY,
+                "Content-Type": "application/json",
+            }
+
+            payload = {
+                "contact_email_status": ["verified", "likely to engage"],
+                "organization_locations": ["United States"],
+                "person_titles": ["founder", "CEO", "partner", "managing director"],
+                "page": 1,
+                "per_page": 100,
+            }
+
+            response = requests.post(url, json=payload, headers=apollo_headers, timeout=30)
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    print(f"    🔍 Raw response keys: {list(data.keys())}")
+                    print(f"    🔍 People count: {len(data.get('people', []))}")
+                    print(f"    🔍 Pagination: {data.get('pagination', {})}")
+                    companies = parser(data)
+                except json.JSONDecodeError:
+                    print(f"    ✗ JSON decode error")
+                    return []
+            else:
+                print(f"    ✗ HTTP {response.status_code}: {response.text}")
+                return []
         else:  # JSON
             params = source_config.get('params', {})
             response = requests.get(url, params=params, headers=HEADERS, timeout=30)
@@ -692,7 +772,7 @@ def discover_companies_from_yaml_only() -> List[Dict]:
     source_config = sources['yaml_companies']
     print(f"📄 Using source: {source_config.get('name', 'yaml_companies')}")
 
-    companies = fetch_from_free_source('yaml_companies', source_config)
+    companies = fetch_from_source('yaml_companies', source_config)
 
     unique_companies = []
     seen_domains = set()
@@ -983,6 +1063,107 @@ def import_json_contacts(json_path: Path):
     finally:
         conn.close()
 
+def process_companies_apollo(companies: List[Dict], max_companies: int = 50):
+    """Process Apollo results directly into DB — no Hunter call needed"""
+    print(f"\n{'=' * 60}")
+    print(f"PROCESSING UP TO {max_companies} APOLLO CONTACTS")
+    print(f"{'=' * 60}\n")
+
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+
+    results = []
+
+    try:
+        processed = {row[0] for row in conn.execute("SELECT domain FROM companies").fetchall()}
+
+        unprocessed = []
+        for company in companies:
+            try:
+                domain = extract_domain(company['url'])
+                if domain not in processed:
+                    unprocessed.append(company)
+            except:
+                continue
+
+        batch = unprocessed[:max_companies]
+        print(f"  {len(processed)} already done, {len(unprocessed)} remaining, processing {len(batch)}\n")
+
+        for i, company in enumerate(batch, 1):
+            try:
+                domain = extract_domain(company['url'])
+                name = company.get('name', domain)
+                meta = company.get('metadata', {})
+
+                contact_email = (meta.get('contact_email') or '').strip()
+                contact_name = (meta.get('contact_name') or '').strip()
+                contact_title = (meta.get('contact_title') or '').strip()
+
+                print(f"[{i}/{len(batch)}] 🔍 {name[:40]} ({domain})")
+
+                if not contact_email:
+                    print(f"    ✗ No email in Apollo response")
+                    continue
+
+                if is_generic_email(contact_email):
+                    print(f"    ✗ Generic email skipped: {contact_email}")
+                    continue
+
+                # Insert company
+                conn.execute(
+                    "INSERT OR IGNORE INTO companies (domain, organization, source_name) VALUES (?, ?, ?)",
+                    (domain, name, 'apollo_people')
+                )
+
+                company_id = conn.execute(
+                    "SELECT id FROM companies WHERE domain = ?", (domain,)
+                ).fetchone()[0]
+
+                # Insert contact directly
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO contacts
+                    (company_id, email, name, position, type, confidence, contacted)
+                    VALUES (?, ?, ?, ?, ?, ?, 0)
+                    """,
+                    (company_id, contact_email, contact_name, contact_title, 'personal', 90)
+                )
+
+                if i % 10 == 0:
+                    conn.commit()
+
+                print(f"    ✓ {contact_email} ({contact_title})")
+                results.append({
+                    "company": name,
+                    "domain": domain,
+                    "organization": name,
+                    "contacts": [{
+                        "email": contact_email,
+                        "name": contact_name,
+                        "position": contact_title,
+                        "type": "personal",
+                        "confidence": 90,
+                    }]
+                })
+
+            except Exception as e:
+                print(f"    ✗ Error: {e}")
+                conn.rollback()
+
+        conn.commit()
+
+    finally:
+        conn.close()
+
+    if results:
+        output_file = BASE_DIR / f"contacts_apollo_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=2)
+        print(f"\n✓ Saved {len(results)} Apollo contacts to {output_file}")
+
+    return results
+
 def discover_companies_from_local_file_only() -> List[Dict]:
     """Discover companies ONLY from target_companies.txt"""
     print("\n" + "=" * 60)
@@ -998,7 +1179,7 @@ def discover_companies_from_local_file_only() -> List[Dict]:
     source_config = sources['local_domains']
     print(f"📄 Using source: {source_config.get('name', 'local_domains')}")
 
-    companies = fetch_from_free_source('local_domains', source_config)
+    companies = fetch_from_source('local_domains', source_config)
 
     unique_companies = []
     seen_domains = set()
@@ -1046,7 +1227,7 @@ def discover_companies_from_free_sources() -> List[Dict]:
         name = source_config.get('name', source_id)
         print(f"[{i}/{enabled_count}] {name}")
 
-        companies = fetch_from_free_source(source_id, source_config)
+        companies = fetch_from_source(source_id, source_config)
         all_companies.extend(companies)
 
         # Small delay between sources
@@ -1152,6 +1333,28 @@ if __name__ == "__main__":
 
         print("\n" + "=" * 60)
         print("YAML FILE CRAWLER COMPLETE")
+        print("=" * 60)
+
+    elif len(sys.argv) > 1 and sys.argv[1] == "--apollo-only":
+        print("\n" + "=" * 60)
+        print("APOLLO ONLY MODE")
+        print("=" * 60)
+
+        init_db()
+
+        sources = load_free_database_sources()
+        apollo_config = sources['apollo_people']
+        apollo_config['enabled'] = True  # ← add this
+        companies = fetch_from_source('apollo_people', apollo_config)
+
+        if not companies:
+            print("No contacts returned from Apollo. Exiting.")
+            sys.exit(0)
+
+        process_companies_apollo(companies, max_companies=100)
+
+        print("\n" + "=" * 60)
+        print("APOLLO CRAWLER COMPLETE")
         print("=" * 60)
 
     else:
