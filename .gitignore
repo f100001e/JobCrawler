@@ -10,6 +10,9 @@ __pycache__/
 # Database files
 *.db
 *.sqlite*
+*.yml
+*.wal
+*.shm
 
 # Environment files (ignore real ones, keep .env.example)
 .env
@@ -31,7 +34,6 @@ Thumbs.db
 
 # Personal files
 resume.pdf
-EOF
 *.html
 *.png
 *.jpg
@@ -50,5 +52,3 @@ corporate_crawler_ppla.py
 ppla_run.py
 setup_ppla_db.py
 
-# DB
-.yml

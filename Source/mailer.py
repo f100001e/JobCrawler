@@ -92,9 +92,13 @@ def dismiss_failed(conn: sqlite3.Connection, contact_id: int, err: str):
         WHERE id = ?
     """, (utc_now_iso(), (err or "")[:500], contact_id))
 
-def build_body(first: str, domain: str) -> str:
+CAMPAIGN = os.getenv("CAMPAIGN", "job").lower()
+
+def build_body(first: str, domain: str, cat: str = "open") -> str:
     greeting = f"Hi {first}," if first else "Hi,"
-    return f"""{greeting}
+    
+    if CAMPAIGN == "ppla":
+        return f"""{greeting}
 
 I'll keep this brief — PPLA Social + PR is a full-service PR and social media agency based in Hollywood. We've been building stories in this city for over a decade, with a media arm at PressPassLA.com that gives clients genuine editorial reach.
 
@@ -108,19 +112,27 @@ PressPassLA.com (News) | PPLASocial.com (Agency)
 c. 323.496.1976
 jennifer@presspassla.com
 """
+    else:
+        return f"""{greeting}
+
+I'm reaching out regarding {cat} roles at {domain}.
+
+Resume attached. If there's a better contact or process, I'd appreciate a pointer.
+
+Best,
+FLE
+
+GitHub: github.com/f100001e
+LinkedIn: linkedin.com/in/franklangelliott
+Columns: sxhx.news
+"""
+    
 def default_body(domain: str, category: str | None, name: str | None = None, email_type: str | None = None) -> str:
     first = None
     if (email_type or "").lower() != "generic":
         if name and name.strip() and name.strip().upper() != "N/A":
             first = name.strip().split()[0]
     return build_body(first, domain)
-
-    # Don't personalize generic inboxes (jobs@, info@, etc.) IMPORTANT LOGIC
-    first = None
-    if (email_type or "").lower() != "generic":
-        if name and name.strip() and name.strip().upper() != "N/A":
-            first = name.strip().split()[0]
-
 
 def check_and_import_json_if_empty():
     """Check if database is empty and import from JSON if needed"""
@@ -285,7 +297,10 @@ def run_mailer():
                 contact_id, to_email, name, domain, organization = r
                 email_type = None  # not available from this query
                 category = "Open"
-                subject = "PPLA Social + PR — Introduction"
+                if CAMPAIGN == "ppla":
+                    subject = "PPLA Social + PR — Introduction"
+                else:
+                    subject = f"Application: {category} roles"
                 body = default_body(domain, category, name=name, email_type=email_type)
 
                 try:
@@ -444,7 +459,11 @@ def send_test_email(test_email):
         server.login(SMTP_USER, SMTP_PASS)
 
     # Build test message
-    subject = "PPLA Social + PR — Introduction"
+    if CAMPAIGN == "ppla":
+        subject = "PPLA Social + PR — Introduction"
+    else:
+        subject = "Application — Frank Lang Elliott"
+
     body = build_body("", "")
 
     try:
