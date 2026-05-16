@@ -643,7 +643,7 @@ def get_apollo_pagination_state(db_path: Path) -> dict:
         return {"last_page": result[0], "last_cursor": result[1], "total_processed": result[2]}
     return {"last_page": 0, "last_cursor": None, "total_processed": 0}
 
-def save_apollo_pagination_state(db_path: Path, page: int, cursor: str = None, total: int = None):
+def save_apollo_pagination_state(db_path: Path, page: int, cursor: str = None, total: int = None, filter_index: int = 0):
     """Save pagination state for Apollo to resume later"""
     conn = sqlite3.connect(db_path, timeout=30.0)
     conn.execute("PRAGMA journal_mode=WAL")
@@ -657,9 +657,9 @@ def save_apollo_pagination_state(db_path: Path, page: int, cursor: str = None, t
         )
     """)
     conn.execute("""
-        INSERT OR REPLACE INTO crawler_metadata (source_name, last_page, last_cursor, total_processed, updated_at)
-        VALUES (?, ?, ?, ?, ?)
-    """, ("apollo_people", page, cursor, total or 0, datetime.now(timezone.utc).isoformat()))
+            INSERT OR REPLACE INTO crawler_metadata (source_name, last_page, last_cursor, total_processed, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+        """, ("apollo_people", page, f"{cursor}|{filter_index}", total or 0, datetime.now(timezone.utc).isoformat()))
     conn.commit()
     conn.close()
 
@@ -792,20 +792,6 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 "X-Api-Key": APOLLO_API_KEY,
                 "Content-Type": "application/json",
             }
-            
-            # Get pagination state
-            state = get_apollo_pagination_state(DB_PATH)
-            current_page = state.get('last_page', 0) + 1
-            total_processed_this_run = state.get('total_processed', 0)
-            print(f"    📄 Resuming from page {current_page}, previously processed {total_processed_this_run} contacts")
-            
-            enriched = []
-            seen_emails_this_run = set()
-            seen_person_ids = set()
-            per_page = 25
-            max_pages = 50  # Increased safety limit
-            reached_end = False
-            
 
             TITLE_SETS = [
                 ["founder", "CEO", "managing director"],
@@ -819,12 +805,34 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 ["private_equity"],
                 [],
             ]
+            
+            
+            # Get pagination state
+            state = get_apollo_pagination_state(DB_PATH)
+            current_page = state.get('last_page', 0) + 1
+            cursor_data = state.get('last_cursor') or '|0'
+            filter_index = int(cursor_data.split('|')[-1]) if '|' in (cursor_data or '') else 0
+
+            # When page hits 100, rotate filter and reset page
+            if current_page > 100:
+                current_page = 1
+                filter_index = (filter_index + 1) % len(TITLE_SETS)
+                print(f"    🔄 Page limit reached, rotating to title set {filter_index}: {TITLE_SETS[filter_index]}")
+                
+            current_titles = TITLE_SETS[filter_index]
+            
+            enriched = []
+            seen_emails_this_run = set()
+            seen_person_ids = set()
+            per_page = 25
+            max_pages = 50  # Increased safety limit
+            reached_end = False
+            
+            total_processed_this_run = state.get('total_processed', 0)
 
             while len(enriched) < MAX_COMPANIES_PER_DAY and not reached_end and current_page <= max_pages:
-                title_set_index = (current_page // 5) % len(TITLE_SETS)
-                funding_index = (current_page // 5) % len(FUNDING_SETS)
-                current_titles = TITLE_SETS[title_set_index]
-                current_funding = FUNDING_SETS[funding_index]
+                current_titles = TITLE_SETS[filter_index]
+                current_funding = FUNDING_SETS[filter_index % len(FUNDING_SETS)]
 
                 search_payload = {
                     "person_titles": current_titles,
@@ -839,8 +847,8 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                     search_payload["organization_latest_funding_stage_cd"] = current_funding
 
                 print(f"    🔍 Fetching page {current_page} (titles: {current_titles[0]}...)...")
-                print(f"    📊 Funding: {current_funding[0] if current_funding else 'None'}"
-)
+                print(f"    📊 Funding: {current_funding[0] if current_funding else 'None'}")
+                print(f"    📊 Enriched so far: {len(enriched)}/{MAX_COMPANIES_PER_DAY}, reached_end={reached_end}, page={current_page}/{max_pages}")
                 response = requests.post(url, json=search_payload, headers=apollo_headers, timeout=30)
                 
                 if response.status_code != 200:
@@ -912,15 +920,19 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                     time.sleep(CRAWL_DELAY / 2)  # between enrichments (half the crawl delay)
 
                 # Save progress after each page
-                save_apollo_pagination_state(DB_PATH, current_page, None, total_processed_this_run + len(enriched))
+                save_apollo_pagination_state(DB_PATH, current_page, str(filter_index), total_processed_this_run + len(enriched))
                 
                 # Check if we've reached the last page
-                if current_page >= total_pages:
+                if total_pages > 0 and current_page >= total_pages:
                     print(f"    ✓ Reached last page ({total_pages})")
+                    reached_end = True
+                elif current_page >= 100:
+                    filter_index = (filter_index + 1) % len(TITLE_SETS)
+                    print(f"    🔄 Page limit reached, rotating to title set {filter_index}: {TITLE_SETS[filter_index][0]}")
                     reached_end = True
                 else:
                     current_page += 1
-                    time.sleep(CRAWL_DELAY)  # between pages (full crawl delay)
+                    time.sleep(CRAWL_DELAY)
 
             # Only reset pagination if we reached the end AND got contacts
             if reached_end and len(enriched) > 0:
