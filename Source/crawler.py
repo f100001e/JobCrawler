@@ -816,10 +816,7 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
             ]
 
             FUNDING_SETS = [
-                ["seed", "angel"],
-                ["series_a"],
-                ["series_b"],
-                ["series_c", "series_d"],
+                ["private_equity"],
                 [],
             ]
 
@@ -912,7 +909,7 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                     seen_emails_this_run.add(email)
                     print(f"    ✓ [{len(enriched)}/{MAX_COMPANIES_PER_DAY}] {email}")
 
-                    time.sleep(0.5)  # Rate limiting
+                    time.sleep(CRAWL_DELAY / 2)  # between enrichments (half the crawl delay)
 
                 # Save progress after each page
                 save_apollo_pagination_state(DB_PATH, current_page, None, total_processed_this_run + len(enriched))
@@ -923,7 +920,7 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                     reached_end = True
                 else:
                     current_page += 1
-                    time.sleep(1.0)  # Polite delay between pages
+                    time.sleep(CRAWL_DELAY)  # between pages (full crawl delay)
 
             # Only reset pagination if we reached the end AND got contacts
             if reached_end and len(enriched) > 0:
