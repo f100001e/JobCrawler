@@ -599,7 +599,87 @@ def scrape_indie_hackers(html: str) -> List[Dict]:
 
     return companies
 
+# ===== Pre-Fetch ======
 
+def get_already_processed_domains(db_path: Path, source: str = None) -> set:
+    """Get domains already processed from specific source"""
+    conn = sqlite3.connect(db_path, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    
+    if source:
+        rows = conn.execute(
+            "SELECT domain FROM companies WHERE source_name = ?", 
+            (source,)
+        ).fetchall()
+    else:
+        rows = conn.execute("SELECT domain FROM companies").fetchall()
+    
+    conn.close()
+    return {row[0] for row in rows}
+
+def get_apollo_pagination_state(db_path: Path) -> dict:
+    """Get last pagination state for Apollo to resume from where you left off"""
+    conn = sqlite3.connect(db_path, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    
+    # Create metadata table if it doesn't exist
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS crawler_metadata (
+            source_name TEXT PRIMARY KEY,
+            last_page INTEGER,
+            last_cursor TEXT,
+            total_processed INTEGER,
+            updated_at TEXT
+        )
+    """)
+    
+    result = conn.execute(
+        "SELECT last_page, last_cursor, total_processed FROM crawler_metadata WHERE source_name = 'apollo_people'"
+    ).fetchone()
+    
+    conn.close()
+    
+    if result:
+        return {"last_page": result[0], "last_cursor": result[1], "total_processed": result[2]}
+    return {"last_page": 0, "last_cursor": None, "total_processed": 0}
+
+def save_apollo_pagination_state(db_path: Path, page: int, cursor: str = None, total: int = None):
+    """Save pagination state for Apollo to resume later"""
+    conn = sqlite3.connect(db_path, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS crawler_metadata (
+            source_name TEXT PRIMARY KEY,
+            last_page INTEGER,
+            last_cursor TEXT,
+            total_processed INTEGER,
+            updated_at TEXT
+        )
+    """)
+    conn.execute("""
+        INSERT OR REPLACE INTO crawler_metadata (source_name, last_page, last_cursor, total_processed, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, ("apollo_people", page, cursor, total or 0, datetime.now(timezone.utc).isoformat()))
+    conn.commit()
+    conn.close()
+
+def reset_apollo_pagination(db_path: Path):
+    """Reset Apollo pagination to start from page 1"""
+    conn = sqlite3.connect(db_path, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("DELETE FROM crawler_metadata WHERE source_name = 'apollo_people'")
+    conn.commit()
+    conn.close()
+    print("✓ Apollo pagination reset to page 1")
+
+def show_apollo_status(db_path: Path):
+    """Show current Apollo pagination status"""
+    state = get_apollo_pagination_state(db_path)
+    print(f"Apollo Status:")
+    print(f"  Last page: {state.get('last_page', 0)}")
+    print(f"  Total processed: {state.get('total_processed', 0)}")
+    print(f"  Next page to fetch: {state.get('last_page', 0) + 1}")
+   
 # ===== DATABASE FETCHER =====
 
 def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
@@ -712,55 +792,99 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 "X-Api-Key": APOLLO_API_KEY,
                 "Content-Type": "application/json",
             }
-
+            
+            # Get pagination state
+            state = get_apollo_pagination_state(DB_PATH)
+            current_page = state.get('last_page', 0) + 1
+            total_processed_this_run = state.get('total_processed', 0)
+            print(f"    📄 Resuming from page {current_page}, previously processed {total_processed_this_run} contacts")
+            
             enriched = []
-            page = 1
-            per_page = 25  # Apollo plan limit per page
+            seen_emails_this_run = set()
+            seen_person_ids = set()
+            per_page = 25
+            max_pages = 50  # Increased safety limit
+            reached_end = False
+            
 
-            while len(enriched) < MAX_COMPANIES_PER_DAY:
+            TITLE_SETS = [
+                ["founder", "CEO", "managing director"],
+                ["president", "owner", "principal"],
+                ["cto", "coo", "cmo", "chief"],
+                ["vp", "vice president", "head of"],
+                ["partner", "general partner", "managing partner"],
+            ]
+
+            FUNDING_SETS = [
+                ["seed", "angel"],
+                ["series_a"],
+                ["series_b"],
+                ["series_c", "series_d"],
+                [],
+            ]
+
+            while len(enriched) < MAX_COMPANIES_PER_DAY and not reached_end and current_page <= max_pages:
+                title_set_index = (current_page // 5) % len(TITLE_SETS)
+                funding_index = (current_page // 5) % len(FUNDING_SETS)
+                current_titles = TITLE_SETS[title_set_index]
+                current_funding = FUNDING_SETS[funding_index]
+
                 search_payload = {
-                    "person_titles": ["founder", "CEO", "partner", "managing director"],
+                    "person_titles": current_titles,
                     "person_locations": ["United States"],
                     "contact_email_status": ["verified"],
-                    "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],  # small to mid-size
-                    "organization_latest_funding_stage_cd": ["seed", "series_a", "series_b"],  # funded but early
+                    "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],
                     "per_page": per_page,
-                    "page": page,
+                    "page": current_page,
                 }
 
-                print(f"    🔍 Fetching page {page}...")
+                if current_funding:
+                    search_payload["organization_latest_funding_stage_cd"] = current_funding
+
+                print(f"    🔍 Fetching page {current_page} (titles: {current_titles[0]}...)...")
+                print(f"    📊 Funding: {current_funding[0] if current_funding else 'None'}"
+)
                 response = requests.post(url, json=search_payload, headers=apollo_headers, timeout=30)
+                
                 if response.status_code != 200:
-                    print(f"    ✗ HTTP {response.status_code}: {response.text}")
+                    print(f"    ✗ HTTP {response.status_code}: {response.text[:200]}")
                     break
 
                 data = response.json()
+                
+                # Check pagination info in response
+                pagination = data.get('pagination', {})
+                total_pages = pagination.get('total_pages', 0)
+                
                 people = data.get('people', [])
                 if not people:
-                    print(f"    ✓ No more results at page {page}")
+                    print(f"    ✓ No more results at page {current_page}")
+                    reached_end = True
                     break
 
-                print(f"    🔍 Page {page}: {len(people)} people, enriching...")
+                print(f"    🔍 Page {current_page}/{total_pages}: {len(people)} people, enriching...")
 
                 for person in people:
                     if len(enriched) >= MAX_COMPANIES_PER_DAY:
                         break
 
                     person_id = person.get('id')
-                    if not person_id:
+                    if not person_id or person_id in seen_person_ids:
                         continue
+                    
+                    seen_person_ids.add(person_id)
 
+                    # Skip domains already in DB
                     primary_domain = (person.get('organization') or {}).get('primary_domain', '')
-                    #check if primary domain is already in DB before enriching to save API calls and avoid duplicates
                     if primary_domain:
                         try:
                             check_domain = extract_domain(f"https://{primary_domain}")
                             if check_domain in existing_domains:
-                                print(f"    ⏭ {check_domain} already in DB")
                                 continue
                         except:
                             pass
 
+                    # Enrich person
                     enrich_response = requests.post(
                         "https://api.apollo.io/api/v1/people/match",
                         json={"id": person_id, "reveal_personal_emails": True},
@@ -773,22 +897,41 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
 
                     enriched_person = enrich_response.json().get('person', {})
                     email = enriched_person.get('email', '')
-                    if email:
-                        org = enriched_person.get('organization') or {}
-                        enriched.append({
-                            'first_name': enriched_person.get('first_name', ''),
-                            'last_name': enriched_person.get('last_name', ''),
-                            'email': email,
-                            'title': enriched_person.get('title', ''),
-                            'organization': org,
-                        })
-                        print(f"    ✓ [{len(enriched)}/{MAX_COMPANIES_PER_DAY}] {email}")
 
-                    time.sleep(0.5)
+                    if not email or email in seen_emails_this_run:
+                        continue
 
-                page += 1
-                time.sleep(1.0)  # polite delay between pages
+                    org = enriched_person.get('organization') or {}
+                    enriched.append({
+                        'first_name': enriched_person.get('first_name', ''),
+                        'last_name': enriched_person.get('last_name', ''),
+                        'email': email,
+                        'title': enriched_person.get('title', ''),
+                        'organization': org,
+                    })
+                    seen_emails_this_run.add(email)
+                    print(f"    ✓ [{len(enriched)}/{MAX_COMPANIES_PER_DAY}] {email}")
 
+                    time.sleep(0.5)  # Rate limiting
+
+                # Save progress after each page
+                save_apollo_pagination_state(DB_PATH, current_page, None, total_processed_this_run + len(enriched))
+                
+                # Check if we've reached the last page
+                if current_page >= total_pages:
+                    print(f"    ✓ Reached last page ({total_pages})")
+                    reached_end = True
+                else:
+                    current_page += 1
+                    time.sleep(1.0)  # Polite delay between pages
+
+            # Only reset pagination if we reached the end AND got contacts
+            if reached_end and len(enriched) > 0:
+                print(f"    ✓ Completed all pages. Resetting pagination for next run.")
+                # Comment this out if you want to keep pagination state
+                # save_apollo_pagination_state(DB_PATH, 0, None, 0)
+
+            print(f"    ✓ Apollo enrichment complete: {len(enriched)} new contacts found")
             companies = parser({'people': enriched})
 
 
@@ -1425,6 +1568,25 @@ if __name__ == "__main__":
         print("APOLLO CRAWLER COMPLETE")
         print("=" * 60)
 
+    elif len(sys.argv) > 1 and sys.argv[1] == "--apollo-reset":
+        print("\n" + "=" * 60)
+        print("RESETTING APOLLO PAGINATION STATE")
+        print("=" * 60)
+        init_db()
+        reset_apollo_pagination(DB_PATH)
+        show_apollo_status(DB_PATH)
+        sys.exit(0)
+
+    elif len(sys.argv) > 1 and sys.argv[1] == "--apollo-status":
+        print("\n" + "=" * 60)
+        print("APOLLO PAGINATION STATUS")
+        print("=" * 60)
+        init_db()
+        show_apollo_status(DB_PATH)
+        sys.exit(0)
+
     else:
         # Run normal mode (all sources)
         main()
+
+        
