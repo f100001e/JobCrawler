@@ -411,3 +411,45 @@
 - name: Andreessen Horowitz Cultural Leadership Fund
   url: https://a16z.com/cultural-leadership-fund
   type: vc
+
+# ===== OTHER REGIONAL VCs =====
+
+- name: Slauson & Co.
+  url: https://slauson.co
+  type: vc
+
+- name: MaC Venture Capital
+  url: https://macventurecapital.com
+  type: vc
+
+- name: Smash Capital
+  url: https://smashcap.com
+  type: vc
+
+- name: Science Inc.
+  url: https://science-inc.com
+  type: vc
+
+- name: UTA Ventures
+  url: https://unitedtalent.com
+  type: vc
+
+- name: Pear VC
+  url: https://pear.vc
+  type: vc
+
+- name: Homebrew
+  url: https://homebrew.co
+  type: vc
+
+- name: Abstract Ventures
+  url: https://abstract.vc
+  type: vc
+
+- name: Techstars New York City
+  url: https://techstars.com/accelerators/nyc
+  type: accelerator
+
+- name: IndieBio
+  url: https://indiebio.co
+  type: accelerator

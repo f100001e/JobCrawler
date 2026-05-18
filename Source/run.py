@@ -23,7 +23,7 @@ def show_menu():
     print("=" * 60)
     print("\nWhat would you like to do?")
     print("1. Run crawler (ALL sources - find companies & get emails)")
-    print("2. Run crawler (LOCAL FILE only - companies.txt)")
+    print("2. Run crawler (LOCAL FILE only - target_companies.txt)")
     print("3. Run crawler (YAML FILE only - companies.yaml)")
     print("4. Run crawler (APOLLO only - direct contact import)")
     print("5. Run mailer (send emails) - Normal SMTP")
@@ -66,7 +66,7 @@ def run_crawler_apollo_only():
 
 
 def run_crawler_local_only():
-    """Run crawler only for companies in local companies.txt file"""
+    """Run crawler only for companies in local target_companies.txt file"""
     print("\n" + "=" * 60)
     print("RUNNING CRAWLER (LOCAL FILE ONLY)")
     print("=" * 60)

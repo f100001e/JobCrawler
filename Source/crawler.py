@@ -103,15 +103,16 @@ def load_free_database_sources() -> Dict:
     },
 
     # ===== LOCAL FILES =====
-    "local_csv": {
-        "name": "Local CSV File",
-        "path": "companies.csv",
-        "type": "local_csv",
-        "enabled": False,
-        "parser": "csv",
-        "description": "Your own CSV with company data",
-        "estimated_companies": "variable",
+    "local_domains": {
+    "name": "Local Domains TXT File",
+    "path": "target_companies.txt",  # Your text file name
+    "type": "local_txt",
+    "enabled": True,  # Set to True to use it
+    "parser": "plain_text",
+    "description": "Simple text file with one domain/URL per line",
+    "estimated_companies": "variable",
     },
+    
     "yaml_companies": {
         "name": "YAML Companies File",
         "path": "companies.yml",
