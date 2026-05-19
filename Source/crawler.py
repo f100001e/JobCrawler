@@ -795,16 +795,11 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
             }
 
             TITLE_SETS = [
-                ["founder", "CEO", "managing director"],
-                ["president", "owner", "principal"],
-                ["cto", "coo", "cmo", "chief"],
-                ["vp", "vice president", "head of"],
-                ["partner", "general partner", "managing partner"],
+                ["ceo", "founder", "cto", "cpo", "head of product", "head of engineering", "vp engineering", "vp product"]
             ]
 
             FUNDING_SETS = [
-                ["private_equity"],
-                [],
+                ["seed", "series_a", "series_b", "series_c"]
             ]
             
             
@@ -836,14 +831,18 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 current_funding = FUNDING_SETS[filter_index % len(FUNDING_SETS)]
 
                 search_payload = {
-                    "person_titles": current_titles,
                     "person_locations": ["United States"],
-                    "contact_email_status": ["verified"],
-                    "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],
-                    "per_page": per_page,
+                    "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],  # Startups, not enterprises
+                    "person_titles": ["ceo", "founder", "cto", "vp", "director", "head of"],  # Decision makers
+                    "organization_latest_funding_stage_cd": ["seed", "series_a", "series_b"],  # Funded but not PE
+                    "per_page": 25,
                     "page": current_page,
                 }
 
+                
+                if current_titles:
+                    search_payload["person_titles"] = current_titles
+                    
                 if current_funding:
                     search_payload["organization_latest_funding_stage_cd"] = current_funding
 
