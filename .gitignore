@@ -52,3 +52,6 @@ corporate_crawler_ppla.py
 ppla_run.py
 setup_ppla_db.py
 
+# Test and Debug
+test_apollo_filters.py
+

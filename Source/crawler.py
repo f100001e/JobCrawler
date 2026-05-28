@@ -795,11 +795,11 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
             }
 
             TITLE_SETS = [
-                ["ceo", "founder", "cto", "cpo", "head of product", "head of engineering", "vp engineering", "vp product"]
+                ["owner", "founder", "c_suite", "partner", "vp", "head", "director", "manager", "senior"]
             ]
 
             FUNDING_SETS = [
-                ["seed", "series_a", "series_b", "series_c"]
+                ["equity_crowdfunding","angel","seed", "series_a", "series_b", "series_c", "series_d", "series_e", "series_f","private_equity"]
             ]
             
             
@@ -833,8 +833,8 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 search_payload = {
                     "person_locations": ["United States"],
                     "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],  # Startups, not enterprises
-                    "person_titles": ["ceo", "founder", "cto", "vp", "director", "head of"],  # Decision makers
-                    "organization_latest_funding_stage_cd": ["seed", "series_a", "series_b"],  # Funded but not PE
+                    "person_titles": ["owner", "founder", "c_suite", "partner", "vp", "head", "director", "manager", "senior"],  # Decision makers
+                    "organization_latest_funding_stage_cd": ["equity_crowdfunding","angel","seed", "series_a", "series_b", "series_c", "series_d", "series_e", "series_f","private_equity"],
                     "per_page": 25,
                     "page": current_page,
                 }
@@ -888,6 +888,40 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                                 continue
                         except:
                             pass
+
+
+                    # DEBUG domain
+                    primary_domain = (person.get('organization') or {}).get('primary_domain', '')
+                    domain_skipped = False
+                    if primary_domain:
+                        try:
+                            check_domain = extract_domain(f"https://{primary_domain}")
+                            if check_domain in existing_domains:
+                                domain_skipped = True
+                        except:
+                            pass
+                    print(f"      → {person.get('first_name')} | domain: {primary_domain} | skipped: {domain_skipped}")
+                    if domain_skipped:
+                        continue
+
+                        # Enrich person
+                    enrich_response = requests.post(
+                        "https://api.apollo.io/api/v1/people/match",
+                        json={"id": person_id, "reveal_personal_emails": True},
+                        headers=apollo_headers,
+                        timeout=30
+                    )
+
+                    print(f"        → enrich status: {enrich_response.status_code}")
+                    if enrich_response.status_code != 200:
+                        print(f"        → enrich error: {enrich_response.text[:200]}")
+                        continue
+
+                    enriched_person = enrich_response.json().get('person', {})
+                    email = enriched_person.get('email', '')
+                    print(f"        → email: {repr(email)}")
+                    print(f"        → work_email: {repr(enriched_person.get('work_email'))}")
+
 
                     # Enrich person
                     enrich_response = requests.post(
