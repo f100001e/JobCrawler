@@ -31,6 +31,8 @@ CRAWL_DELAY = float(os.getenv("CRAWL_DELAY_SECONDS", "2.0"))  # Be extra polite 
 MAX_COMPANIES_PER_DAY = int(os.getenv("MAX_COMPANIES_PER_DAY", "50"))
 MAX_CONTACTS_PER_COMPANY = int(os.getenv("MAX_CONTACTS_PER_COMPANY", "10"))
 
+MAX_API_CALLS_PER_RUN = int(os.getenv("MAX_API_CALLS_PER_RUN", "400"))
+
 APOLLO_API_KEY = os.getenv("APOLLO_API_KEY", "")
 
 HEADERS = {"User-Agent": USER_AGENT, "Accept": "application/json"}
@@ -825,148 +827,125 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
             reached_end = False
             
             total_processed_this_run = state.get('total_processed', 0)
+            api_calls_made = 0
 
-            while len(enriched) < MAX_COMPANIES_PER_DAY and not reached_end and current_page <= max_pages:
-                current_titles = TITLE_SETS[filter_index]
-                current_funding = FUNDING_SETS[filter_index % len(FUNDING_SETS)]
 
-                search_payload = {
-                    "person_locations": ["United States"],
-                    "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],  # Startups, not enterprises
-                    "person_titles": ["owner", "founder", "c_suite", "partner", "vp", "head", "director", "manager", "senior"],  # Decision makers
-                    "organization_latest_funding_stage_cd": ["equity_crowdfunding","angel","seed", "series_a", "series_b", "series_c", "series_d", "series_e", "series_f","private_equity"],
-                    "per_page": 25,
-                    "page": current_page,
-                }
+        while len(enriched) < MAX_COMPANIES_PER_DAY and not reached_end and current_page <= max_pages:
+            current_titles = TITLE_SETS[filter_index]
+            current_funding = FUNDING_SETS[filter_index % len(FUNDING_SETS)]
 
-                
-                if current_titles:
-                    search_payload["person_titles"] = current_titles
-                    
-                if current_funding:
-                    search_payload["organization_latest_funding_stage_cd"] = current_funding
+            search_payload = {
+                "person_locations": ["United States"],
+                "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],
+                "person_titles": current_titles,
+                "organization_latest_funding_stage_cd": current_funding,
+                "per_page": 25,
+                "page": current_page,
+            }
 
-                print(f"    🔍 Fetching page {current_page} (titles: {current_titles[0]}...)...")
-                print(f"    📊 Funding: {current_funding[0] if current_funding else 'None'}")
-                print(f"    📊 Enriched so far: {len(enriched)}/{MAX_COMPANIES_PER_DAY}, reached_end={reached_end}, page={current_page}/{max_pages}")
-                response = requests.post(url, json=search_payload, headers=apollo_headers, timeout=30)
-                
-                if response.status_code != 200:
-                    print(f"    ✗ HTTP {response.status_code}: {response.text[:200]}")
+            print(f"    🔍 Fetching page {current_page} (titles: {current_titles[0]}...)...")
+            print(f"    📊 Funding: {current_funding[0] if current_funding else 'None'}")
+            print(f"    📊 Enriched so far: {len(enriched)}/{MAX_COMPANIES_PER_DAY}, page={current_page}/{max_pages}")
+
+            response = requests.post(url, json=search_payload, headers=apollo_headers, timeout=30)
+
+            if response.status_code != 200:
+                print(f"    ✗ HTTP {response.status_code}: {response.text[:200]}")
+                break
+
+            data = response.json()
+            pagination = data.get("pagination", {})
+            total_pages = pagination.get("total_pages", 0)
+
+            people = data.get("people", [])
+            if not people:
+                print(f"    ✓ No more results at page {current_page}")
+                reached_end = True
+                break
+
+            print(f"    🔍 Page {current_page}/{total_pages}: {len(people)} people, enriching...")
+
+            for person in people:
+                if len(enriched) >= MAX_COMPANIES_PER_DAY:
+                    break
+    
+                person_id = person.get("id")
+                if not person_id or person_id in seen_person_ids:
+                    continue
+
+                seen_person_ids.add(person_id)
+                ## Important: Passes and tracks all people through enrichment step to get their emails, which are critical for search results.
+                primary_domain = (person.get("organization") or {}).get("primary_domain", "")
+                domain_skipped = False
+
+                if primary_domain:
+                    try:
+                        check_domain = extract_domain(f"https://{primary_domain}")
+                        if check_domain in existing_domains:
+                            domain_skipped = True
+                    except:
+                        pass
+
+                print(f"      → {person.get('first_name')} | domain: {primary_domain} | skipped: {domain_skipped}")
+
+                if domain_skipped:
+                    continue
+
+                api_calls_made += 1
+                if api_calls_made >= MAX_API_CALLS_PER_RUN:
+                    print(f"    ⚠️ API limit reached ({api_calls_made}/{MAX_API_CALLS_PER_RUN}). Saving and exiting.")
+                    save_apollo_pagination_state(DB_PATH, current_page, str(filter_index), total_processed_this_run + len(enriched))
+                    reached_end = True
                     break
 
-                data = response.json()
-                
-                # Check pagination info in response
-                pagination = data.get('pagination', {})
-                total_pages = pagination.get('total_pages', 0)
-                
-                people = data.get('people', [])
-                if not people:
-                    print(f"    ✓ No more results at page {current_page}")
-                    reached_end = True
-                    break
+                enrich_response = requests.post(
+                    "https://api.apollo.io/api/v1/people/match",
+                    json={"id": person_id, "reveal_personal_emails": True},
+                    headers=apollo_headers,
+                    timeout=30
+                )
 
-                print(f"    🔍 Page {current_page}/{total_pages}: {len(people)} people, enriching...")
+                if enrich_response.status_code != 200:
+                    print(f"        → enrich error: {enrich_response.status_code} - {enrich_response.text[:200]}")
+                    continue
 
-                for person in people:
-                    if len(enriched) >= MAX_COMPANIES_PER_DAY:
-                        break
+                enriched_person = enrich_response.json().get("person", {})
+                email = enriched_person.get("email", "")
 
-                    person_id = person.get('id')
-                    if not person_id or person_id in seen_person_ids:
-                        continue
-                    
-                    seen_person_ids.add(person_id)
+                if not email or email in seen_emails_this_run:
+                    continue
 
-                    # Skip domains already in DB
-                    primary_domain = (person.get('organization') or {}).get('primary_domain', '')
-                    if primary_domain:
-                        try:
-                            check_domain = extract_domain(f"https://{primary_domain}")
-                            if check_domain in existing_domains:
-                                continue
-                        except:
-                            pass
+                org = enriched_person.get("organization") or {}
 
+                enriched.append({
+                    "first_name": enriched_person.get("first_name", ""),
+                    "last_name": enriched_person.get("last_name", ""),
+                    "email": email,
+                    "title": enriched_person.get("title", ""),
+                    "organization": org,
+                })
 
-                    # DEBUG domain
-                    primary_domain = (person.get('organization') or {}).get('primary_domain', '')
-                    domain_skipped = False
-                    if primary_domain:
-                        try:
-                            check_domain = extract_domain(f"https://{primary_domain}")
-                            if check_domain in existing_domains:
-                                domain_skipped = True
-                        except:
-                            pass
-                    print(f"      → {person.get('first_name')} | domain: {primary_domain} | skipped: {domain_skipped}")
-                    if domain_skipped:
-                        continue
+                seen_emails_this_run.add(email)
+                print(f"    ✓ [{len(enriched)}/{MAX_COMPANIES_PER_DAY}] {email}")
 
-                        # Enrich person
-                    enrich_response = requests.post(
-                        "https://api.apollo.io/api/v1/people/match",
-                        json={"id": person_id, "reveal_personal_emails": True},
-                        headers=apollo_headers,
-                        timeout=30
-                    )
+                time.sleep(CRAWL_DELAY / 2)
 
-                    print(f"        → enrich status: {enrich_response.status_code}")
-                    if enrich_response.status_code != 200:
-                        print(f"        → enrich error: {enrich_response.text[:200]}")
-                        continue
+            # Save progress after each page
+            save_apollo_pagination_state(DB_PATH, current_page, str(filter_index), total_processed_this_run + len(enriched))
 
-                    enriched_person = enrich_response.json().get('person', {})
-                    email = enriched_person.get('email', '')
-                    print(f"        → email: {repr(email)}")
-                    print(f"        → work_email: {repr(enriched_person.get('work_email'))}")
+            if reached_end:
+                break
 
-
-                    # Enrich person
-                    enrich_response = requests.post(
-                        "https://api.apollo.io/api/v1/people/match",
-                        json={"id": person_id, "reveal_personal_emails": True},
-                        headers=apollo_headers,
-                        timeout=30
-                    )
-
-                    if enrich_response.status_code != 200:
-                        continue
-
-                    enriched_person = enrich_response.json().get('person', {})
-                    email = enriched_person.get('email', '')
-
-                    if not email or email in seen_emails_this_run:
-                        continue
-
-                    org = enriched_person.get('organization') or {}
-                    enriched.append({
-                        'first_name': enriched_person.get('first_name', ''),
-                        'last_name': enriched_person.get('last_name', ''),
-                        'email': email,
-                        'title': enriched_person.get('title', ''),
-                        'organization': org,
-                    })
-                    seen_emails_this_run.add(email)
-                    print(f"    ✓ [{len(enriched)}/{MAX_COMPANIES_PER_DAY}] {email}")
-
-                    time.sleep(CRAWL_DELAY / 2)  # between enrichments (half the crawl delay)
-
-                # Save progress after each page
-                save_apollo_pagination_state(DB_PATH, current_page, str(filter_index), total_processed_this_run + len(enriched))
-                
-                # Check if we've reached the last page
-                if total_pages > 0 and current_page >= total_pages:
-                    print(f"    ✓ Reached last page ({total_pages})")
-                    reached_end = True
-                elif current_page >= 100:
-                    filter_index = (filter_index + 1) % len(TITLE_SETS)
-                    print(f"    🔄 Page limit reached, rotating to title set {filter_index}: {TITLE_SETS[filter_index][0]}")
-                    reached_end = True
-                else:
-                    current_page += 1
-                    time.sleep(CRAWL_DELAY)
+            if total_pages > 0 and current_page >= total_pages:
+                print(f"    ✓ Reached last page ({total_pages})")
+                reached_end = True
+            elif current_page >= 100:
+                filter_index = (filter_index + 1) % len(TITLE_SETS)
+                print(f"    🔄 Page limit reached, rotating to title set {filter_index}: {TITLE_SETS[filter_index][0]}")
+                reached_end = True
+            else:
+                current_page += 1
+                time.sleep(CRAWL_DELAY)
 
             # Only reset pagination if we reached the end AND got contacts
             if reached_end and len(enriched) > 0:
