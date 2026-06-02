@@ -100,11 +100,13 @@ def build_body(first: str, domain: str, cat: str = "open") -> str:
     if CAMPAIGN == "ppla":
         return f"""{greeting}
 
-I'll keep this brief — PPLA Social + PR is a full-service PR and social media agency based in Hollywood. We've been building stories in this city for over a decade, with a media arm at PressPassLA.com that gives clients genuine editorial reach.
+While I wasn't referred to you directly, I've followed {domain} for some time and have been impressed by what you're building.
 
-We work across entertainment, lifestyle, tech, health, and philanthropy — and we're good at making early-stage companies and the people behind them visible.
+I wanted to reach out to introduce PPLA Social + PR and learn more about your current branding, media, and growth goals.
 
-If that's relevant to you, let's have a quick conversation.
+We recently covered the American Music Awards in Las Vegas and maintain a strong presence at CES each year. Our team works across technology, entertainment, and public affairs, helping clients secure meaningful coverage in top-tier publications including Forbes, Rolling Stone, The New York Times, NYSE TV, and other leading outlets.
+
+I'd be happy to schedule a brief call to learn more about your objectives and explore whether there may be an opportunity to work together.
 
 --
 Jennifer Buonantony, CEO

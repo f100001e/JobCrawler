@@ -30,12 +30,21 @@ CRAWL_DELAY = float(os.getenv("CRAWL_DELAY_SECONDS", "2.0"))  # Be extra polite 
 
 MAX_COMPANIES_PER_DAY = int(os.getenv("MAX_COMPANIES_PER_DAY", "50"))
 MAX_CONTACTS_PER_COMPANY = int(os.getenv("MAX_CONTACTS_PER_COMPANY", "10"))
-
-MAX_API_CALLS_PER_RUN = int(os.getenv("MAX_API_CALLS_PER_RUN", "400"))
+MAX_API_CALLS_PER_RUN = int(os.getenv("MAX_API_CALLS_PER_RUN", "100"))
 
 APOLLO_API_KEY = os.getenv("APOLLO_API_KEY", "")
 
-HEADERS = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+HEADERS = {
+    "User-Agent": USER_AGENT, 
+    "Accept": "application/json",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
+}
 
 # Near HR_KEYWORDS and ENG_KEYWORDS, add:
 DECISION_MAKER_KEYWORDS = (
@@ -105,16 +114,15 @@ def load_free_database_sources() -> Dict:
     },
 
     # ===== LOCAL FILES =====
-    "local_domains": {
-    "name": "Local Domains TXT File",
-    "path": "target_companies.txt",  # Your text file name
-    "type": "local_txt",
-    "enabled": True,  # Set to True to use it
-    "parser": "plain_text",
-    "description": "Simple text file with one domain/URL per line",
-    "estimated_companies": "variable",
+    "local_txt": {
+        "name": "Local Text File",
+        "path": "target_companies.txt",
+        "type": "local_txt",
+        "enabled": False,
+        "parser": "plain_text",
+        "description": "Your own text file with company URLs (one per line)",
+        "estimated_companies": "variable",
     },
-    
     "yaml_companies": {
         "name": "YAML Companies File",
         "path": "companies.yml",
@@ -241,23 +249,27 @@ def parse_apollo_people(data: Any) -> List[Dict]:
 
     for person in data.get('people', []) or []:
         org = person.get('organization') or {}
-        email = person.get('email', '')
-        url = org.get('website_url') or org.get('primary_domain') or ''
-
-        if not email:
+        url = org.get('website_url') or ''
+        name = org.get('name') or ''
+        
+        # Debug first person
+        if not companies and not url:
+            print(f"    🔍 Sample person: {person.get('first_name')} {person.get('last_name')}")
+            print(f"    🔍 Org keys: {list(org.keys()) if org else 'NO ORG'}")
+            print(f"    🔍 Email: {person.get('email')}")
+        
+        if not url:
             continue
-
-        if not url and '@' in email:
-            url = 'https://' + email.split('@')[1]
-
+        
         companies.append({
-            'name': org.get('name', ''),
+            'name': name,
             'url': url if url.startswith('http') else f"https://{url}",
             'source': 'apollo_people',
             'metadata': {
                 'contact_name': f"{person.get('first_name', '')} {person.get('last_name', '')}".strip(),
-                'contact_email': email,
+                'contact_email': person.get('email', ''),
                 'contact_title': person.get('title', ''),
+                'funding_stage': org.get('latest_funding_stage', ''),
             }
         })
     return companies
@@ -496,53 +508,6 @@ def parse_yaml_companies(text: str) -> List[Dict]:
         print(f"    ⚠ Error parsing companies.yaml: {e}")
     return companies
 
-def parse_csv_content(csv_text: str) -> List[Dict]:
-    """Parse CSV content"""
-    companies = []
-    try:
-        import io
-        f = io.StringIO(csv_text)
-        reader = csv.DictReader(f)
-
-        for row in reader:
-            # Try different column names for URL
-            url_fields = ['url', 'website', 'domain', 'homepage', 'link', 'URL', 'Website']
-            url = None
-
-            for field in url_fields:
-                if field in row and row[field]:
-                    url = row[field]
-                    break
-
-            if url:
-                # Get company name
-                name_fields = ['name', 'company', 'Name', 'Company', 'title']
-                name = ''
-
-                for field in name_fields:
-                    if field in row and row[field]:
-                        name = row[field]
-                        break
-
-                if not name:
-                    # Extract from URL
-                    try:
-                        domain = extract_domain(url)
-                        name = domain.split('.')[0].replace('-', ' ').title()
-                    except:
-                        name = 'Unknown'
-
-                companies.append({
-                    'name': name,
-                    'url': url if url.startswith('http') else f"https://{url}",
-                    'source': 'csv',
-                    'metadata': {k: v for k, v in row.items() if k not in url_fields + name_fields}
-                })
-    except Exception as e:
-        print(f"Error parsing CSV: {e}")
-
-    return companies
-
 # ===== WEB SCRAPING PARSERS =====
 
 def scrape_angel_list(html: str) -> List[Dict]:
@@ -682,11 +647,12 @@ def show_apollo_status(db_path: Path):
     print(f"  Last page: {state.get('last_page', 0)}")
     print(f"  Total processed: {state.get('total_processed', 0)}")
     print(f"  Next page to fetch: {state.get('last_page', 0) + 1}")
-   
+
 # ===== DATABASE FETCHER =====
 
 def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
     """Fetch companies from a free source"""
+    companies = []  # Initialize at the start
     name = source_config.get('name', source_id)
     enabled = source_config.get('enabled', True)
 
@@ -699,12 +665,12 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
         source_type = source_config.get('type', 'json')
         parser_name = source_config.get('parser', 'json')
 
+        # Map parser names to functions
         parsers = {
             'cncf_landscape': parse_cncf_landscape,
             'github_markdown': parse_github_markdown,
             'hn_whoishiring': parse_hn_whoishiring,
             'plain_text': parse_plain_text,
-            'csv': parse_csv_content,
             'rss_feed': parse_rss_feed,
             'yc_json': parse_yc_json,
             'edgar_companies': parse_edgar_companies,
@@ -733,6 +699,7 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
 
             if file_path.exists():
                 content = file_path.read_text(encoding='utf-8', errors='ignore')
+
                 if source_type == 'local_json':
                     try:
                         data = json.loads(content)
@@ -741,6 +708,7 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                         companies = parser(content)
                 else:
                     companies = parser(content)
+
                 print(f"    → Found {len(companies)} companies")
                 return companies
             else:
@@ -753,12 +721,15 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
             print(f"    ⚠ No URL specified")
             return []
 
+        # Make request with polite delays
         time.sleep(random.uniform(1.0, 2.0))
 
         if source_type in ('xml', 'rss'):
             response = requests.get(url, headers=HEADERS, timeout=30)
             if response.status_code == 200:
                 companies = parser(response.text)
+                print(f"    → Found {len(companies)} companies")
+                return companies
             else:
                 print(f"    ✗ HTTP {response.status_code}")
                 return []
@@ -767,14 +738,18 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
             response = requests.get(url, headers=HEADERS, timeout=30)
             if response.status_code == 200:
                 companies = parser(response.text)
+                print(f"    → Found {len(companies)} companies")
+                return companies
             else:
                 print(f"    ✗ HTTP {response.status_code}")
                 return []
-
+        
         elif source_type == 'yaml_remote':
             response = requests.get(url, headers=HEADERS, timeout=30)
             if response.status_code == 200:
                 companies = parser(response.text)
+                print(f"    → Found {len(companies)} companies")
+                return companies
             else:
                 print(f"    ✗ HTTP {response.status_code}")
                 return []
@@ -797,165 +772,158 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
             }
 
             TITLE_SETS = [
-                ["owner", "founder", "c_suite", "partner", "vp", "head", "director", "manager", "senior"]
+                ["ceo", "founder", "cto", "cpo"],                    # C-level executives
+                ["vp", "director", "head of"],                       # Senior leadership
+                ["manager", "senior"],                               # Mid-level
+                ["owner", "partner", "c_suite"],                     # Owners/Partners
+                ["cto", "vp engineering", "head of engineering"],    # Technical leaders
+                ["cmo", "vp marketing", "head of marketing"],        # Marketing leaders
+                ["cfo", "vp finance", "head of finance"],            # Finance leaders
             ]
 
             FUNDING_SETS = [
-                ["equity_crowdfunding","angel","seed", "series_a", "series_b", "series_c", "series_d", "series_e", "series_f","private_equity"]
+                ["seed", "series_a"],                    # Early stage
+                ["series_b", "series_c"],                # Growth stage  
+                ["series_d", "series_e", "series_f"],    # Late stage
+                ["private_equity"],                      # PE only
+                ["angel", "seed"],                       # Very early
             ]
-            
             
             # Get pagination state
             state = get_apollo_pagination_state(DB_PATH)
             current_page = state.get('last_page', 0) + 1
             cursor_data = state.get('last_cursor') or '|0'
             filter_index = int(cursor_data.split('|')[-1]) if '|' in (cursor_data or '') else 0
-
-            # When page hits 100, rotate filter and reset page
-            if current_page > 100:
-                current_page = 1
-                filter_index = (filter_index + 1) % len(TITLE_SETS)
-                print(f"    🔄 Page limit reached, rotating to title set {filter_index}: {TITLE_SETS[filter_index]}")
-                
-            current_titles = TITLE_SETS[filter_index]
             
             enriched = []
             seen_emails_this_run = set()
             seen_person_ids = set()
-            per_page = 25
-            max_pages = 50  # Increased safety limit
+            max_pages = 100
             reached_end = False
             
             total_processed_this_run = state.get('total_processed', 0)
             api_calls_made = 0
 
-
-        while len(enriched) < MAX_COMPANIES_PER_DAY and not reached_end and current_page <= max_pages:
-            current_titles = TITLE_SETS[filter_index]
-            current_funding = FUNDING_SETS[filter_index % len(FUNDING_SETS)]
-
-            search_payload = {
-                "person_locations": ["United States"],
-                "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],
-                "person_titles": current_titles,
-                "organization_latest_funding_stage_cd": current_funding,
-                "per_page": 25,
-                "page": current_page,
-            }
-
-            print(f"    🔍 Fetching page {current_page} (titles: {current_titles[0]}...)...")
-            print(f"    📊 Funding: {current_funding[0] if current_funding else 'None'}")
-            print(f"    📊 Enriched so far: {len(enriched)}/{MAX_COMPANIES_PER_DAY}, page={current_page}/{max_pages}")
-
-            response = requests.post(url, json=search_payload, headers=apollo_headers, timeout=30)
-
-            if response.status_code != 200:
-                print(f"    ✗ HTTP {response.status_code}: {response.text[:200]}")
-                break
-
-            data = response.json()
-            pagination = data.get("pagination", {})
-            total_pages = pagination.get("total_pages", 0)
-
-            people = data.get("people", [])
-            if not people:
-                print(f"    ✓ No more results at page {current_page}")
-                reached_end = True
-                break
-
-            print(f"    🔍 Page {current_page}/{total_pages}: {len(people)} people, enriching...")
-
-            for person in people:
-                if len(enriched) >= MAX_COMPANIES_PER_DAY:
-                    break
-    
-                person_id = person.get("id")
-                if not person_id or person_id in seen_person_ids:
-                    continue
-
-                seen_person_ids.add(person_id)
-                ## Important: Passes and tracks all people through enrichment step to get their emails, which are critical for search results.
-                primary_domain = (person.get("organization") or {}).get("primary_domain", "")
-                domain_skipped = False
-
-                if primary_domain:
-                    try:
-                        check_domain = extract_domain(f"https://{primary_domain}")
-                        if check_domain in existing_domains:
-                            domain_skipped = True
-                    except:
-                        pass
-
-                print(f"      → {person.get('first_name')} | domain: {primary_domain} | skipped: {domain_skipped}")
-
-                if domain_skipped:
-                    continue
-
-                api_calls_made += 1
-                if api_calls_made >= MAX_API_CALLS_PER_RUN:
-                    print(f"    ⚠️ API limit reached ({api_calls_made}/{MAX_API_CALLS_PER_RUN}). Saving and exiting.")
-                    save_apollo_pagination_state(DB_PATH, current_page, str(filter_index), total_processed_this_run + len(enriched))
-                    reached_end = True
-                    break
-
-                enrich_response = requests.post(
-                    "https://api.apollo.io/api/v1/people/match",
-                    json={"id": person_id, "reveal_personal_emails": True},
-                    headers=apollo_headers,
-                    timeout=30
-                )
-
-                if enrich_response.status_code != 200:
-                    print(f"        → enrich error: {enrich_response.status_code} - {enrich_response.text[:200]}")
-                    continue
-
-                enriched_person = enrich_response.json().get("person", {})
-                email = enriched_person.get("email", "")
-
-                if not email or email in seen_emails_this_run:
-                    continue
-
-                org = enriched_person.get("organization") or {}
-
-                enriched.append({
-                    "first_name": enriched_person.get("first_name", ""),
-                    "last_name": enriched_person.get("last_name", ""),
-                    "email": email,
-                    "title": enriched_person.get("title", ""),
-                    "organization": org,
-                })
-
-                seen_emails_this_run.add(email)
-                print(f"    ✓ [{len(enriched)}/{MAX_COMPANIES_PER_DAY}] {email}")
-
-                time.sleep(CRAWL_DELAY / 2)
-
-            # Save progress after each page
-            save_apollo_pagination_state(DB_PATH, current_page, str(filter_index), total_processed_this_run + len(enriched))
-
-            if reached_end:
-                break
-
-            if total_pages > 0 and current_page >= total_pages:
-                print(f"    ✓ Reached last page ({total_pages})")
-                reached_end = True
-            elif current_page >= 100:
+            while len(enriched) < MAX_COMPANIES_PER_DAY and not reached_end and current_page <= max_pages:
+                # Rotate filter for EVERY page
                 filter_index = (filter_index + 1) % len(TITLE_SETS)
-                print(f"    🔄 Page limit reached, rotating to title set {filter_index}: {TITLE_SETS[filter_index][0]}")
-                reached_end = True
-            else:
+                current_titles = TITLE_SETS[filter_index]
+                current_funding = FUNDING_SETS[filter_index % len(FUNDING_SETS)]
+
+                search_payload = {
+                    "person_locations": ["United States"],
+                    "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],
+                    "person_titles": current_titles,
+                    "organization_latest_funding_stage_cd": current_funding,
+                    "per_page": 25,
+                    "page": 1,  # Always page 1 of each filter combo
+                }
+
+                print(f"    🔍 Fetching combo {current_page} (titles: {current_titles[0]}..., funding: {current_funding[0]})...")
+                
+                response = requests.post(url, json=search_payload, headers=apollo_headers, timeout=30)
+
+                if response.status_code != 200:
+                    print(f"    ✗ HTTP {response.status_code}: {response.text[:200]}")
+                    break
+
+                data = response.json()
+                people = data.get("people", [])
+                
+                if not people:
+                    print(f"    ✓ No more results for this combo")
+                    current_page += 1
+                    continue
+
+                print(f"    🔍 Got {len(people)} people, enriching...")
+
+                for person in people:
+                    if len(enriched) >= MAX_COMPANIES_PER_DAY:
+                        break
+    
+                    person_id = person.get("id")
+                    if not person_id or person_id in seen_person_ids:
+                        continue
+
+                    seen_person_ids.add(person_id)
+                    primary_domain = (person.get("organization") or {}).get("primary_domain", "")
+                    domain_skipped = False
+
+                    if primary_domain:
+                        try:
+                            check_domain = extract_domain(f"https://{primary_domain}")
+                            if check_domain in existing_domains:
+                                domain_skipped = True
+                        except:
+                            pass
+
+                    print(f"      → {person.get('first_name')} | domain: {primary_domain} | skipped: {domain_skipped}")
+
+                    if domain_skipped:
+                        continue
+
+                    api_calls_made += 1
+                    if api_calls_made >= MAX_API_CALLS_PER_RUN:
+                        print(f"    ⚠️ API limit reached ({api_calls_made}/{MAX_API_CALLS_PER_RUN}). Saving and exiting.")
+                        save_apollo_pagination_state(DB_PATH, current_page, str(filter_index), total_processed_this_run + len(enriched))
+                        reached_end = True
+                        break
+
+                    enrich_response = requests.post(
+                        "https://api.apollo.io/api/v1/people/match",
+                        json={"id": person_id, "reveal_personal_emails": True},
+                        headers=apollo_headers,
+                        timeout=30
+                    )
+                    
+                    print(f"        → enrich status: {enrich_response.status_code}")
+
+                    if enrich_response.status_code != 200:
+                        print(f"        → enrich error: {enrich_response.text[:500]}")
+                        continue
+
+                    enrich_data = enrich_response.json()
+                    credits_remaining = enrich_data.get('credits_remaining')
+                    if credits_remaining is not None:
+                        print(f"        → Credits remaining: {credits_remaining}")
+                    
+                    remaining = enrich_response.headers.get('X-RateLimit-Remaining')
+                    if remaining:
+                        print(f"        → Rate limit remaining: {remaining}")
+
+                    enriched_person = enrich_data.get("person", {})
+                    email = enriched_person.get("email", "")
+
+                    if not email or email in seen_emails_this_run:
+                        continue
+
+                    org = enriched_person.get("organization") or {}
+
+                    enriched.append({
+                        "first_name": enriched_person.get("first_name", ""),
+                        "last_name": enriched_person.get("last_name", ""),
+                        "email": email,
+                        "title": enriched_person.get("title", ""),
+                        "organization": org,
+                    })
+
+                    seen_emails_this_run.add(email)
+                    print(f"    ✓ [{len(enriched)}/{MAX_COMPANIES_PER_DAY}] {email}")
+
+                    time.sleep(CRAWL_DELAY / 2)
+
+                # Save progress after each combo
+                save_apollo_pagination_state(DB_PATH, current_page, str(filter_index), total_processed_this_run + len(enriched))
                 current_page += 1
                 time.sleep(CRAWL_DELAY)
 
-            # Only reset pagination if we reached the end AND got contacts
-            if reached_end and len(enriched) > 0:
-                print(f"    ✓ Completed all pages. Resetting pagination for next run.")
-                # Comment this out if you want to keep pagination state
-                # save_apollo_pagination_state(DB_PATH, 0, None, 0)
-
+            # AFTER the while loop - process all collected enriched data
             print(f"    ✓ Apollo enrichment complete: {len(enriched)} new contacts found")
+            if enriched:
+                print(f"    🔍 First enriched contact: {enriched[0].get('first_name')} {enriched[0].get('last_name')} - {enriched[0].get('email')}")
             companies = parser({'people': enriched})
-
+            print(f"    → Found {len(companies)} companies from {len(enriched)} contacts")
+            return companies
 
         else:  # JSON
             params = source_config.get('params', {})
@@ -970,12 +938,11 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 print(f"    ✗ HTTP {response.status_code}")
                 return []
 
-        print(f"    → Found {len(companies)} companies")
-        return companies
-    
+            print(f"    → Found {len(companies)} companies")
+            return companies
     except Exception as e:
-            print(f"    ✗ Error: {e}")
-            return []
+        print(f"    ✗ Error fetching source: {e}")
+        return []
 
 # ===== MAIN FUNCTIONS =====
 
@@ -1405,14 +1372,14 @@ def discover_companies_from_local_file_only() -> List[Dict]:
 
     sources = load_free_database_sources()
 
-    if 'local_domains' not in sources:
-        print("❌ 'local_domains' source not found in configuration")
+    if 'local_txt' not in sources:  # ← Changed from 'local_domains'
+        print("❌ 'local_txt' source not found in configuration")
         return []
 
-    source_config = sources['local_domains']
-    print(f"📄 Using source: {source_config.get('name', 'local_domains')}")
+    source_config = sources['local_txt']  # ← Changed from 'local_domains'
+    print(f"📄 Using source: {source_config.get('name', 'local_txt')}")
 
-    companies = fetch_from_source('local_domains', source_config)
+    companies = fetch_from_source('local_txt', source_config)  # ← Changed from 'local_domains'
 
     unique_companies = []
     seen_domains = set()
@@ -1431,59 +1398,49 @@ def discover_companies_from_local_file_only() -> List[Dict]:
 
     return unique_companies
 
+
 def discover_companies_from_free_sources() -> List[Dict]:
-    """
-    Discover companies from ALL enabled free public sources
-    """
+    """Discover companies from all enabled free sources."""
     print("\n" + "=" * 60)
-    print("DISCOVERING COMPANIES FROM FREE PUBLIC SOURCES")
+    print("DISCOVERING COMPANIES FROM FREE SOURCES")
     print("=" * 60 + "\n")
 
-    # Load all free sources
     sources = load_free_database_sources()
+    enabled_sources = [sid for sid, cfg in sources.items() if cfg.get('enabled', False)]
 
-    all_companies = []
-    enabled_count = 0
+    if not enabled_sources:
+        print("No enabled free sources found. Check your YAML overrides or enable sources in configuration.")
+        return []
 
-    # Count enabled sources
-    for sid, config in sources.items():
-        if config.get('enabled', True):
-            enabled_count += 1
-
-    print(f"📡 Checking {enabled_count} enabled free sources...\n")
-
-    # Process each enabled source
-    for i, (source_id, source_config) in enumerate(sources.items(), 1):
-        if not source_config.get('enabled', True):
-            continue
-
-        name = source_config.get('name', source_id)
-        print(f"[{i}/{enabled_count}] {name}")
-
-        companies = fetch_from_source(source_id, source_config)
-        all_companies.extend(companies)
-
-        # Small delay between sources
-        time.sleep(0.5)
-
-    # Deduplicate by domain
     unique_companies = []
     seen_domains = set()
 
-    for company in all_companies:
-        try:
-            domain = extract_domain(company['url'])
-            if domain not in seen_domains:
-                seen_domains.add(domain)
-                unique_companies.append(company)
-        except:
-            continue
+    for source_id in enabled_sources:
+        source_config = sources[source_id]
+        fetched = fetch_from_source(source_id, source_config)
+
+        for company in fetched:
+            url = company.get('url', '')
+            if not url:
+                continue
+            try:
+                domain = extract_domain(url)
+            except Exception:
+                continue
+
+            if domain in seen_domains:
+                continue
+
+            seen_domains.add(domain)
+            company['source_name'] = source_id
+            unique_companies.append(company)
 
     print(f"\n{'=' * 60}")
-    print(f"📊 TOTAL UNIQUE COMPANIES FOUND: {len(unique_companies)}")
+    print(f"📊 FREE SOURCE COMPANIES FOUND: {len(unique_companies)}")
     print(f"{'=' * 60}\n")
 
     return unique_companies
+
 
 def main():
     """Main execution"""

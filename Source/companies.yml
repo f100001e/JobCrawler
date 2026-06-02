@@ -453,3 +453,23 @@
 - name: IndieBio
   url: https://indiebio.co
   type: accelerator
+
+- name: Bond
+  url: https://bond.team
+  type: vc
+
+- name: Anthem Venture Partners
+  url: https://anthemvp.com
+  type: vc
+
+- name: Palisades Growth Capital
+  url: https://palisadesgrowth.com
+  type: vc
+
+- name: Canyon Creek Capital
+  url: https://canyoncreekcapital.com
+  type: vc
+
+- name: Mohr Davidow Ventures
+  url: https://mdv.com
+  type: vc
