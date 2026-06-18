@@ -810,14 +810,19 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 current_titles = TITLE_SETS[filter_index]
                 current_funding = FUNDING_SETS[filter_index % len(FUNDING_SETS)]
 
-                search_payload = {
-                    "person_locations": ["United States"],
-                    "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],
-                    "person_titles": current_titles,
-                    "organization_latest_funding_stage_cd": current_funding,
-                    "per_page": 25,
-                    "page": 1,  # Always page 1 of each filter combo
-                }
+                ALL_TITLES = sorted(set(t for group in TITLE_SETS for t in group))
+                ALL_FUNDING = sorted(set(f for group in FUNDING_SETS for f in group))
+
+                for page in range(1, max_pages + 1):
+                    search_payload = {
+                        "person_locations": ["United States"],
+                        "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],
+                        "person_titles": ALL_TITLES,
+                        "organization_latest_funding_stage_cd": ALL_FUNDING,
+                        "per_page": 25,
+                        "page": page,
+                    }
+
 
                 print(f"    🔍 Fetching combo {current_page} (titles: {current_titles[0]}..., funding: {current_funding[0]})...")
                 
