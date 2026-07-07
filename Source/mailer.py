@@ -302,7 +302,7 @@ def run_mailer():
                 if CAMPAIGN == "ppla":
                     subject = "PPLA Social + PR — Introduction"
                 else:
-                    subject = f"Application: {category} roles"
+                    subject = f"{category} roles at {domain}"
                 body = default_body(domain, category, name=name, email_type=email_type)
 
                 try:
@@ -461,12 +461,20 @@ def send_test_email(test_email):
         server.login(SMTP_USER, SMTP_PASS)
 
     # Build test message
+    contact_id = None
+    to_email = test_email
+    name = "Test User"
+    domain = "example.com"
+    organization = "Test Organization"
+    email_type = "test"
+    category = "Tech"
+
     if CAMPAIGN == "ppla":
         subject = "PPLA Social + PR — Introduction"
     else:
-        subject = "Application — Frank Lang Elliott"
+        subject = f"{category} roles at {domain}"
 
-    body = build_body("", "")
+    body = default_body(domain, category, name=name, email_type=email_type)
 
     try:
         msg = build_message(test_email, subject, body)
