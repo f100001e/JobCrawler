@@ -754,7 +754,15 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 print(f"    ✗ HTTP {response.status_code}")
                 return []
 
-        # Replace the apollo section in fetch_from_source with this optimized version:
+        elif source_type in ("markdown", "text"):
+            response = requests.get(url, headers=HEADERS, timeout=30)
+            if response.status_code == 200:
+                companies = parser(response.text)
+                print(f"    → Found {len(companies)} companies")
+                return companies
+            else:
+                print(f"    ✗ HTTP {response.status_code}")
+                return []
 
         # ===== CLEANED UP APOLLO SECTION =====
 
@@ -1481,7 +1489,7 @@ def discover_companies_from_free_sources() -> List[Dict]:
 
     for source_id in enabled_sources:
         source_config = sources[source_id]
-        fetched = fetch_from_source(source_id, source_config)
+        fetched = fetch_from_source(source_id, source_config) or []
 
         for company in fetched:
             url = company.get('url', '')
