@@ -864,7 +864,24 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                             except Exception as e:
                                 print(f"        ❌ Batch error: {e}")
                                 continue
- 
+                            #debug for errors and added data reconciliation
+                            print(f"        🔍 RAW: {enrich_response.text[:500]}")
+                            if enrich_response.status_code == 200:
+                                resp_json = enrich_response.json()
+                                for m in resp_json.get("matches", []):
+                                    print(f"        🔍 {m.get('first_name')} {m.get('last_name')} — "
+                                        f"email: {m.get('email')!r}, linkedin: {m.get('linkedin_url')!r}")
+
+                                results = resp_json.get("matches", [])
+                                enriched_batch.extend(results)
+                                print(f"        ✅ Enriched {len(results)} people")
+                            else:
+                                print(f"        ❌ Batch enrich failed: {enrich_response.status_code} — {enrich_response.text[:300]}")
+                                if enrich_response.status_code == 402:
+                                    print(f"        💳 Credit limit reached!")
+                                    reached_end = True
+                                    break
+
                             if enrich_response.status_code != 200:
                                 print(f"        ❌ Batch enrich failed: {enrich_response.status_code} — {enrich_response.text[:300]}")
                                 if enrich_response.status_code == 402:
