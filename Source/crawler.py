@@ -754,12 +754,16 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 print(f"    ✗ HTTP {response.status_code}")
                 return []
 
+        # Replace the apollo section in fetch_from_source with this optimized version:
+
+        # ===== CLEANED UP APOLLO SECTION =====
+
         elif source_type == 'apollo':
             if not APOLLO_API_KEY:
                 print(f"    ⚠ Missing APOLLO_API_KEY")
                 return []
 
-            # Load existing domains to avoid re-enriching
+            # Load existing domains
             conn_check = sqlite3.connect(DB_PATH, timeout=30.0)
             existing_domains = {row[0] for row in conn_check.execute("SELECT domain FROM companies").fetchall()}
             conn_check.close()
@@ -772,179 +776,228 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
             }
 
             TITLE_SETS = [
-                ["ceo", "founder", "cto", "cpo"],                    # C-level executives
-                ["vp", "director", "head of"],                       # Senior leadership
-                ["manager", "senior"],                               # Mid-level
-                ["owner", "partner", "c_suite"],                     # Owners/Partners
-                ["cto", "vp engineering", "head of engineering"],    # Technical leaders
-                ["cmo", "vp marketing", "head of marketing"],        # Marketing leaders
-                ["cfo", "vp finance", "head of finance"],            # Finance leaders
+                ["ceo", "founder", "cto", "cpo", "chief"],
+                ["vp", "director", "head"],
+                ["manager", "senior"],
+                ["owner", "partner"],
             ]
 
-            FUNDING_SETS = [
-                ["seed", "series_a"],                    # Early stage
-                ["series_b", "series_c"],                # Growth stage  
-                ["series_d", "series_e", "series_f"],    # Late stage
-                ["private_equity"],                      # PE only
-                ["angel", "seed"],                       # Very early
-            ]
-            
             # Get pagination state
             state = get_apollo_pagination_state(DB_PATH)
-            current_page = state.get('last_page', 0) + 1
-            cursor_data = state.get('last_cursor') or '|0'
-            filter_index = int(cursor_data.split('|')[-1]) if '|' in (cursor_data or '') else 0
+            start_page = state.get('last_page', 0) + 1
+            filter_index = int((state.get('last_cursor') or '0').split('|')[-1]) if state.get('last_cursor') else 0
             
-            enriched = []
+            all_enriched = []
             seen_emails_this_run = set()
             seen_person_ids = set()
-            max_pages = 100
-            reached_end = False
-            
             total_processed_this_run = state.get('total_processed', 0)
-            api_calls_made = 0
-
-            while len(enriched) < MAX_COMPANIES_PER_DAY and not reached_end and current_page <= max_pages:
-                # Rotate filter for EVERY page
-                filter_index = (filter_index + 1) % len(TITLE_SETS)
-                current_titles = TITLE_SETS[filter_index]
-                current_funding = FUNDING_SETS[filter_index % len(FUNDING_SETS)]
-
-                ALL_TITLES = sorted(set(t for group in TITLE_SETS for t in group))
-                ALL_FUNDING = sorted(set(f for group in FUNDING_SETS for f in group))
-
-                for page in range(1, max_pages + 1):
+            credits_used_this_run = 0
+            reached_end = False
+            max_pages = 20
+            
+            # Try each title set
+            for combo_idx in range(filter_index, len(TITLE_SETS)):
+                if reached_end or len(all_enriched) >= MAX_COMPANIES_PER_DAY:
+                    break
+                    
+                current_titles = TITLE_SETS[combo_idx]
+                print(f"    ▶ Combo {combo_idx + 1}/{len(TITLE_SETS)} — titles: {current_titles}")
+                
+                page = start_page if combo_idx == filter_index else 1
+                
+                while page <= max_pages and len(all_enriched) < MAX_COMPANIES_PER_DAY:
                     search_payload = {
                         "person_locations": ["United States"],
-                        "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],
-                        "person_titles": ALL_TITLES,
-                        "organization_latest_funding_stage_cd": ALL_FUNDING,
+                        "organization_num_employees_ranges": ["1,10", "11,50", "51,200", "201,500"],
+                        "person_titles": current_titles,
+                        "organization_latest_funding_stage_cd": ["seed", "series_a", "series_b"],
                         "per_page": 25,
                         "page": page,
                     }
-
-
-                print(f"    🔍 Fetching combo {current_page} (titles: {current_titles[0]}..., funding: {current_funding[0]})...")
+                    
+                    print(f"    🔍 Fetching page {page} for combo {combo_idx + 1}...")
+                    
+                    try:
+                        response = requests.post(url, json=search_payload, headers=apollo_headers, timeout=30)
+                        
+                        if response.status_code != 200:
+                            print(f"    ✗ HTTP {response.status_code}: {response.text[:200]}")
+                            break
+                            
+                        data = response.json()
+                        people = data.get("people", [])
+                        
+                        if not people:
+                            print(f"    ✓ No more results for this combo at page {page}")
+                            break
+                        
+                        print(f"    🔍 Got {len(people)} people, enriching first...")
+                        
+                        # ===== STEP 1: ENRICH ALL PEOPLE FIRST =====
+                        # Batch enrich in groups of 10 to save credits (Apollo max for batch enrichment) plus credit reporting
+                        # No domain is only reported after credit is consuimed
+                        batch_size = 10
+                        enriched_batch = []
+ 
+                        for i in range(0, len(people), batch_size):
+                            if reached_end:
+                                break
+ 
+                            batch = people[i:i+batch_size]
+                            person_ids = [p.get("id") for p in batch if p.get("id")]
+ 
+                            if not person_ids:
+                                continue
+ 
+                            print(f"      → Batch enriching {len(person_ids)} people...")
+ 
+                            try:
+                                enrich_response = requests.post(
+                                    "https://api.apollo.io/api/v1/people/bulk_match",
+                                    json={
+                                        "details": [{"id": pid} for pid in person_ids],
+                                        "reveal_personal_emails": True
+                                    },
+                                    headers=apollo_headers,
+                                    timeout=30
+                                )
+                            except Exception as e:
+                                print(f"        ❌ Batch error: {e}")
+                                continue
+ 
+                            if enrich_response.status_code != 200:
+                                print(f"        ❌ Batch enrich failed: {enrich_response.status_code} — {enrich_response.text[:300]}")
+                                if enrich_response.status_code == 402:
+                                    print(f"        💳 Credit limit reached (Apollo-side)!")
+                                    reached_end = True
+                                break
+ 
+                            resp_json = enrich_response.json()
+                            results = resp_json.get("matches", [])
+ 
+                            # Apollo bills per record that actually returns enriched data
+                            # (i.e. has data, not just an empty stub match). Use presence
+                            # of an email or org data as the real credit-consumption signal.
+                            records_with_data = sum(
+                                1 for r in results
+                                if r.get("email") or r.get("organization")
+                            )
+                            credits_used_this_run += records_with_data
+ 
+                            enriched_batch.extend(results)
+                            print(f"        ✅ Enriched {len(results)} people "
+                                  f"({records_with_data} billed) — "
+                                  f"credits used this run: {credits_used_this_run}/{MAX_API_CALLS_PER_RUN}")
+ 
+                            # HARD CAP: stop the instant we've hit or exceeded the
+                            # configured credit budget, not just "check next loop"
+                            if credits_used_this_run >= MAX_API_CALLS_PER_RUN:
+                                print(f"    ⚠️ Credit cap reached ({credits_used_this_run}/{MAX_API_CALLS_PER_RUN}). Stopping.")
+                                reached_end = True
+                                break
+ 
+                            time.sleep(0.5)
+ 
+                        if reached_end:
+                            break
+                        
+                        print(f"    ✅ Enriched {len(enriched_batch)} people, now filtering...")
+                        
+                        # ===== STEP 2: FILTER ENRICHED PEOPLE =====
+                        for enriched_person in enriched_batch:
+                            if len(all_enriched) >= MAX_COMPANIES_PER_DAY:
+                                break
+                            
+                            # Skip if already seen
+                            person_id = enriched_person.get("id")
+                            if not person_id or person_id in seen_person_ids:
+                                continue
+                            
+                            seen_person_ids.add(person_id)
+                            
+                            # Get organization and domain from enriched data
+                            org = enriched_person.get("organization", {})
+                            domain = org.get("primary_domain", "")
+                            
+                            # Skip if no domain
+                            if not domain:
+                                print(f"      ⏭ {enriched_person.get('first_name', 'Unknown')} - no domain in enriched data")
+                                continue
+                            
+                            # Check if already in DB
+                            try:
+                                clean_domain = extract_domain(f"https://{domain}")
+                                if clean_domain in existing_domains:
+                                    print(f"      ⏭ {clean_domain} - already in DB")
+                                    continue
+                            except:
+                                print(f"      ⏭ {domain} - invalid domain")
+                                continue
+                            
+                            # Check if decision maker
+                            title = (enriched_person.get("title") or "").lower()
+                            decision_makers = ["ceo", "founder", "cto", "vp", "director", "chief", "president", "owner"]
+                            if not any(k in title for k in decision_makers):
+                                print(f"      ⏭ {enriched_person.get('first_name', 'Unknown')} - not decision maker: {title}")
+                                continue
+                            
+                            # Get email
+                            email = enriched_person.get("email", "") or enriched_person.get("personal_email", "")
+                            if not email or email in seen_emails_this_run or is_generic_email(email):
+                                print(f"      ⏭ {enriched_person.get('first_name', 'Unknown')} - no valid email")
+                                continue
+                            
+                            # Check if we already have this email
+                            if email in seen_emails_this_run:
+                                continue
+                            
+                            seen_emails_this_run.add(email)
+                            
+                            # Add to results
+                            all_enriched.append({
+                                "first_name": enriched_person.get("first_name", ""),
+                                "last_name": enriched_person.get("last_name", ""),
+                                "email": email,
+                                "title": enriched_person.get("title", ""),
+                                "organization": org,
+                            })
+                            
+                            # Add to existing domains to avoid duplicates in same run
+                            try:
+                                existing_domains.add(clean_domain)
+                            except:
+                                pass
+                            
+                            print(f"    ✓ [{len(all_enriched)}] {email} ({org.get('name', 'Unknown')}) - {domain}")
+                        
+                        # Save progress after each page
+                        save_apollo_pagination_state(
+                            DB_PATH, page, f"{combo_idx}", 
+                            total_processed_this_run + len(all_enriched)
+                        )
+                        
+                        if len(all_enriched) >= MAX_COMPANIES_PER_DAY:
+                            print(f"    🏆 Target reached: {len(all_enriched)} contacts")
+                            break
+                        
+                        page += 1
+                        time.sleep(CRAWL_DELAY)
+                        
+                    except Exception as e:
+                        print(f"    ✗ Error on page {page}: {e}")
+                        break
                 
-                response = requests.post(url, json=search_payload, headers=apollo_headers, timeout=30)
-
-                if response.status_code != 200:
-                    print(f"    ✗ HTTP {response.status_code}: {response.text[:200]}")
+                if len(all_enriched) >= MAX_COMPANIES_PER_DAY:
                     break
-
-                data = response.json()
-                people = data.get("people", [])
-                
-                if not people:
-                    print(f"    ✓ No more results for this combo")
-                    current_page += 1
-                    continue
-
-                print(f"    🔍 Got {len(people)} people, enriching...")
-
-                for person in people:
-                    if len(enriched) >= MAX_COMPANIES_PER_DAY:
-                        break
-    
-                    person_id = person.get("id")
-                    if not person_id or person_id in seen_person_ids:
-                        continue
-
-                    seen_person_ids.add(person_id)
-                    primary_domain = (person.get("organization") or {}).get("primary_domain", "")
-                    domain_skipped = False
-
-                    if primary_domain:
-                        try:
-                            check_domain = extract_domain(f"https://{primary_domain}")
-                            if check_domain in existing_domains:
-                                domain_skipped = True
-                        except:
-                            pass
-
-                    print(f"      → {person.get('first_name')} | domain: {primary_domain} | skipped: {domain_skipped}")
-
-                    if domain_skipped:
-                        continue
-
-                    api_calls_made += 1
-                    if api_calls_made >= MAX_API_CALLS_PER_RUN:
-                        print(f"    ⚠️ API limit reached ({api_calls_made}/{MAX_API_CALLS_PER_RUN}). Saving and exiting.")
-                        save_apollo_pagination_state(DB_PATH, current_page, str(filter_index), total_processed_this_run + len(enriched))
-                        reached_end = True
-                        break
-
-                    enrich_response = requests.post(
-                        "https://api.apollo.io/api/v1/people/match",
-                        json={"id": person_id, "reveal_personal_emails": True},
-                        headers=apollo_headers,
-                        timeout=30
-                    )
-                    
-                    print(f"        → enrich status: {enrich_response.status_code}")
-
-                    if enrich_response.status_code != 200:
-                        print(f"        → enrich error: {enrich_response.text[:500]}")
-                        continue
-
-                    enrich_data = enrich_response.json()
-                    credits_remaining = enrich_data.get('credits_remaining')
-                    if credits_remaining is not None:
-                        print(f"        → Credits remaining: {credits_remaining}")
-                    
-                    remaining = enrich_response.headers.get('X-RateLimit-Remaining')
-                    if remaining:
-                        print(f"        → Rate limit remaining: {remaining}")
-
-                    enriched_person = enrich_data.get("person", {})
-                    email = enriched_person.get("email", "")
-
-                    if not email or email in seen_emails_this_run:
-                        continue
-
-                    org = enriched_person.get("organization") or {}
-
-                    enriched.append({
-                        "first_name": enriched_person.get("first_name", ""),
-                        "last_name": enriched_person.get("last_name", ""),
-                        "email": email,
-                        "title": enriched_person.get("title", ""),
-                        "organization": org,
-                    })
-
-                    seen_emails_this_run.add(email)
-                    print(f"    ✓ [{len(enriched)}/{MAX_COMPANIES_PER_DAY}] {email}")
-
-                    time.sleep(CRAWL_DELAY / 2)
-
-                # Save progress after each combo
-                save_apollo_pagination_state(DB_PATH, current_page, str(filter_index), total_processed_this_run + len(enriched))
-                current_page += 1
-                time.sleep(CRAWL_DELAY)
-
-            # AFTER the while loop - process all collected enriched data
-            print(f"    ✓ Apollo enrichment complete: {len(enriched)} new contacts found")
-            if enriched:
-                print(f"    🔍 First enriched contact: {enriched[0].get('first_name')} {enriched[0].get('last_name')} - {enriched[0].get('email')}")
-            companies = parser({'people': enriched})
-            print(f"    → Found {len(companies)} companies from {len(enriched)} contacts")
+            
+            # Process enriched data
+            print(f"    ✓ Apollo enrichment complete: {len(all_enriched)} new contacts found")
+            if all_enriched:
+                print(f"    🔍 First enriched contact: {all_enriched[0].get('first_name')} {all_enriched[0].get('last_name')} - {all_enriched[0].get('email')}")
+            companies = parser({'people': all_enriched})
+            print(f"    → Found {len(companies)} companies from {len(all_enriched)} contacts")
             return companies
 
-        else:  # JSON
-            params = source_config.get('params', {})
-            response = requests.get(url, params=params, headers=HEADERS, timeout=30)
-            if response.status_code == 200:
-                try:
-                    data = response.json()
-                    companies = parser(data)
-                except json.JSONDecodeError:
-                    companies = parser(response.text)
-            else:
-                print(f"    ✗ HTTP {response.status_code}")
-                return []
-
-            print(f"    → Found {len(companies)} companies")
-            return companies
     except Exception as e:
         print(f"    ✗ Error fetching source: {e}")
         return []
@@ -1087,19 +1140,8 @@ def process_companies(companies: List[Dict], max_companies: int = 50):
     conn.execute("PRAGMA busy_timeout=30000")
     
     try:
-        processed = {row[0] for row in conn.execute("SELECT domain FROM companies").fetchall()}
-        
-        unprocessed = []
-        for company in companies:
-            try:
-                domain = extract_domain(company['url'])
-                if domain not in processed:
-                    unprocessed.append(company)
-            except:
-                continue
-        
-        batch = unprocessed[:max_companies]
-        print(f"  {len(processed)} already done, {len(unprocessed)} remaining, processing {len(batch)}\n")
+        batch = companies[:max_companies]
+        print(f"  processing {len(batch)} contacts (dedup handled per-contact below)\n")
         
         for i, company in enumerate(batch, 1):
             try:
