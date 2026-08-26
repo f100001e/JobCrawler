@@ -810,15 +810,15 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                     
                 current_titles = TITLE_SETS[combo_idx]
                 print(f"    ▶ Combo {combo_idx + 1}/{len(TITLE_SETS)} — titles: {current_titles}")
-                
+        
                 page = start_page if combo_idx == filter_index else 1
                 
                 while page <= max_pages and len(all_enriched) < MAX_COMPANIES_PER_DAY:
                     search_payload = {
                         "person_locations": ["United States"],
-                        "organization_num_employees_ranges": ["1,10", "11,50", "51,200", "201,500"],
+                        "organization_num_employees_ranges": ["1,10", "11,50", "51,200", "201,500", "501,1000", "1001,5000", "5001,10000", "10001,50000", "50001,100000", "100001+"],
                         "person_titles": current_titles,
-                        "organization_latest_funding_stage_cd": ["seed", "series_a", "series_b"],
+                        "organization_latest_funding_stage_cd": ["seed", "series_a", "series_b", "angel", "series_c", "series_d", "series_e", "series_f", "series_g", "series_h", "ipo"],
                         "per_page": 25,
                         "page": page,
                     }

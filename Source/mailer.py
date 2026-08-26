@@ -125,7 +125,7 @@ Best,
 FLE
 
 GitHub: github.com/f100001e
-LinkedIn: linkedin.com/in/franklangelliott
+LinkedIn: linkedin.com/in/frank-l-elliott
 Columns: sxhx.news
 """
     
@@ -410,15 +410,21 @@ def send_test_email(test_email):
     print(f"From: {FROM_EMAIL}")
     print(f"Resume: {RESUME_PATH}")
     print(f"{'=' * 60}\n")
+    print("ENV file:", BASE_DIR / ".env")
+    print("SMTP host:", SMTP_HOST)
+    print("Whitelist mode:", WHITELIST_MODE)
+    print("SMTP user:", SMTP_USER)
 
     if not RESUME_PATH.exists():
         raise FileNotFoundError(f"Resume not found: {RESUME_PATH}")
 
-    # Force IPv4 for test mode (Google Admin style)
-    print("🔌 Forcing IPv4 connection for test email...")
+    # Determine connection mode from the command-line flag
+    google_admin_mode = "--google-admin" in sys.argv
 
-    # Check if we're in Google Admin mode (--google-admin flag)
-    google_admin_mode = '--google-admin' in sys.argv
+    if google_admin_mode:
+        print("🔌 Connecting through Google Admin relay with forced IPv4...")
+    else:
+        print("🔌 Connecting through normal authenticated SMTP...")
 
     if google_admin_mode:
         # Use Google Admin IPv4 connection

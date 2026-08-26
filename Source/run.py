@@ -29,15 +29,16 @@ def show_menu():
     print("5. Run mailer (send emails) - Normal SMTP")
     print("6. Run mailer - Google Admin IPv4 only")
     print("7. 📧 Test Email (preview formatting, forced IPv4)")
-    print("8. Import JSON contacts only")
-    print("9. Check database status")
-    print("10. Reset contacted status")
-    print("11. Reset Apollo pagination state")
-    print("12. Show Apollo pagination status")
-    print("13. Show crawler help")
-    print("14. Exit")
+    print("8. 📧 Test Email - Normal SMTP (NO IPv4)")  # <-- NEW
+    print("9. Import JSON contacts only")
+    print("10. Check database status")
+    print("11. Reset contacted status")
+    print("12. Reset Apollo pagination state")
+    print("13. Show Apollo pagination status")
+    print("14. Show crawler help")
+    print("15. Exit")
 
-    choice = input("\nEnter choice (1-14): ").strip()
+    choice = input("\nEnter choice (1-15): ").strip()
     return choice
 
 
@@ -114,9 +115,46 @@ def run_mailer_google_admin():
     except FileNotFoundError:
         print("❌ mailer.py not found!")
 
+def test_email_normal_smtp():
+    """
+    Send a test email using Normal SMTP (NO IPv4 forcing)
+    Uses your Google App Password from .env
+    """
+    print("\n" + "=" * 60)
+    print("📧 TEST EMAIL - NORMAL SMTP (NO IPv4)")
+    print("=" * 60)
+    print("   Mode: Normal SMTP (not forced IPv4)")
+    print("   Auth: SMTP with Google App Password")
+    print("=" * 60)
+
+    mailer_file = BASE_DIR / "mailer.py"
+    if not mailer_file.exists():
+        print(f"❌ mailer.py not found!")
+        return
+
+    email = input("\nEnter test email address: ").strip()
+    if not email:
+        print("❌ Email address required!")
+        return
+
+    print(f"\n📨 Sending test email to: {email}")
+    print("   Mode: Normal SMTP (no IPv4 forcing)")
+
+    # Don't use --google-admin flag for normal SMTP
+    cmd = [sys.executable, "mailer.py", "--test-send", email]
+
+    try:
+        subprocess.run(cmd, check=True)
+        print(f"\n✅ Test email sent with Normal SMTP!")
+        print(f"   Please check {email} (including spam folder)")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Test failed with error: {e}")
+    except KeyboardInterrupt:
+        print("\n⚠️  Test interrupted by user")
+
 
 def test_email_ipv4():
-    """Send a test email using forced IPv4 connection to avoid spam folders"""
+    """Send a test email using forced IPv4 connection"""
     print("\n" + "=" * 60)
     print("📧 TEST EMAIL - FORCED IPv4 MODE")
     print("=" * 60)
@@ -559,19 +597,21 @@ def main():
             run_mailer_google_admin()
         elif choice == "7":
             test_email_ipv4()
-        elif choice == "8":
-            import_json_only()
+        elif choice == "8":  # NEW
+            test_email_normal_smtp()
         elif choice == "9":
-            check_database()
+            import_json_only()
         elif choice == "10":
-            reset_contacts()
+            check_database()
         elif choice == "11":
-            reset_apollo_state()
+            reset_contacts()
         elif choice == "12":
-            show_apollo_status()
+            reset_apollo_state()
         elif choice == "13":
-            show_help()
+            show_apollo_status()
         elif choice == "14":
+            show_help()
+        elif choice == "15":  # Changed from 14
             print("\nExiting. Goodbye!")
             break
         else:
