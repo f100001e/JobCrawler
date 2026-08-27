@@ -294,8 +294,7 @@ def parse_apollo_people(data: Any) -> List[Dict]:
             'metadata': {
                 'contact_name': f"{person.get('first_name', '')} {person.get('last_name', '')}".strip(),
                 'contact_email': person.get('email', ''),
-                'contact_title': person.get('title', ''),
-                'funding_stage': org.get('latest_funding_stage', ''),
+                'contact_title': person.get('title', '')
             }
         })
     return companies
@@ -666,6 +665,41 @@ def reset_apollo_pagination(db_path: Path):
     conn.close()
     print("✓ Apollo pagination reset to page 1")
 
+def reset_apollo_contacts_to_pending():
+    """Reset all Apollo-sourced contacts to pending status"""
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    
+    # Count contacts to reset
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT COUNT(*) FROM contacts 
+        WHERE type = 'personal' AND contacted = 1
+    """)
+    count = cur.fetchone()[0]
+    
+    if count == 0:
+        print("✅ No personal contacts with contacted=1 found.")
+        conn.close()
+        return
+    
+    print(f"📊 Found {count} personal contacts marked as 'sent'")
+    confirm = input(f"Reset {count} contacts to pending? (y/n): ").strip().lower()
+    
+    if confirm == 'y':
+        cur.execute("""
+            UPDATE contacts 
+            SET contacted = 0, contacted_at = NULL, last_error = NULL 
+            WHERE type = 'personal' AND contacted = 1
+        """)
+        affected = cur.rowcount
+        conn.commit()
+        print(f"✅ Reset {affected} contacts to pending")
+    else:
+        print("Cancelled.")
+    
+    conn.close()
+
 def show_apollo_status(db_path: Path):
     """Show current Apollo pagination status"""
     state = get_apollo_pagination_state(db_path)
@@ -809,62 +843,100 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 "Content-Type": "application/json",
             }
 
-            TITLE_SETS = [
-                ["ceo", "founder", "cto", "cpo", "chief"],
-                ["vp", "director", "head"],
+            # These are Apollo's documented seniority values—not job titles.
+            SENIORITY_SETS = [
+                ["owner", "founder", "c_suite", "partner"],
+                ["vp", "head", "director"],
                 ["manager", "senior"],
-                ["owner", "partner"],
             ]
 
-            # Get pagination state
             state = get_apollo_pagination_state(DB_PATH)
-            start_page = state.get('last_page', 0) + 1
-            filter_index = int((state.get('last_cursor') or '0').split('|')[-1]) if state.get('last_cursor') else 0
-            
+
+            try:
+                filter_index = int(
+                    (state.get("last_cursor") or "0").rsplit("|", 1)[-1]
+                )
+            except (TypeError, ValueError):
+                filter_index = 0
+
+            if not 0 <= filter_index < len(SENIORITY_SETS):
+                filter_index = 0
+                start_page = 1
+            else:
+                start_page = max(1, int(state.get("last_page") or 0) + 1)
+
             all_enriched = []
+            raw_enriched_all = [] 
             seen_emails_this_run = set()
             seen_person_ids = set()
-            total_processed_this_run = state.get('total_processed', 0)
+            total_processed_this_run = int(state.get("total_processed") or 0)
             credits_used_this_run = 0
             reached_end = False
             max_pages = 20
-            
-            # Try each title set
-            for combo_idx in range(filter_index, len(TITLE_SETS)):
+
+            for combo_idx in range(filter_index, len(SENIORITY_SETS)):
                 if reached_end or len(all_enriched) >= MAX_COMPANIES_PER_DAY:
                     break
-                    
-                current_titles = TITLE_SETS[combo_idx]
-                print(f"    ▶ Combo {combo_idx + 1}/{len(TITLE_SETS)} — titles: {current_titles}")
-        
+
+                current_seniorities = SENIORITY_SETS[combo_idx]
+
+                print(
+                    f"    ▶ Combo {combo_idx + 1}/{len(SENIORITY_SETS)} "
+                    f"— seniorities: {current_seniorities}"
+                )
+
                 page = start_page if combo_idx == filter_index else 1
-                
-                while page <= max_pages and len(all_enriched) < MAX_COMPANIES_PER_DAY:
+
+                while (
+                    page <= max_pages
+                    and len(all_enriched) < MAX_COMPANIES_PER_DAY
+                    and not reached_end
+                ):
                     search_payload = {
                         "person_locations": ["United States"],
-                        "organization_num_employees_ranges": ["1,10", "11,50", "51,200", "201,500", "501,1000", "1001,5000", "5001,10000", "10001,50000", "50001,100000", "100001+"],
-                        "person_titles": current_titles,
-                        "organization_latest_funding_stage_cd": ["seed", "series_a", "series_b", "angel", "series_c", "series_d", "series_e", "series_f", "series_g", "series_h", "ipo"],
-                        "per_page": 25,
+                        "person_seniorities": current_seniorities,
                         "page": page,
+                        "per_page": 100,
                     }
-                    
-                    print(f"    🔍 Fetching page {page} for combo {combo_idx + 1}...")
-                    
+
+                    print(
+                        f"    🔍 Fetching page {page} "
+                        f"for combo {combo_idx + 1}/{len(SENIORITY_SETS)} "
+                        f"— seniorities: {current_seniorities}"
+                    )
+
                     try:
-                        response = requests.post(url, json=search_payload, headers=apollo_headers, timeout=30)
-                        
+                        response = requests.post(
+                            url,
+                            json=search_payload,
+                            headers=apollo_headers,
+                            timeout=30,
+                        )
+
                         if response.status_code != 200:
-                            print(f"    ✗ HTTP {response.status_code}: {response.text[:200]}")
+                            print(
+                                f"    ✗ HTTP {response.status_code}: "
+                                f"{response.text[:300]}"
+                            )
                             break
-                            
+
                         data = response.json()
-                        people = data.get("people", [])
-                        
+                        people = data.get("people") or []
+                        pagination = data.get("pagination") or {}
+
+                        print(
+                            f"    📊 Apollo total={pagination.get('total_entries', 0)}, "
+                            f"pages={pagination.get('total_pages', 0)}, "
+                            f"returned={len(people)}"
+                        )
+
                         if not people:
-                            print(f"    ✓ No more results for this combo at page {page}")
+                            print(
+                                f"    ✓ No more results for this combo "
+                                f"at page {page}"
+                            )
                             break
-                        
+
                         print(f"    🔍 Got {len(people)} people, enriching first...")
                         
                         # ===== STEP 1: ENRICH ALL PEOPLE FIRST =====
@@ -898,33 +970,40 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                             except Exception as e:
                                 print(f"        ❌ Batch error: {e}")
                                 continue
-                            #debug for errors and added data reconciliation
-                            print(f"        🔍 RAW: {enrich_response.text[:500]}")
-                            if enrich_response.status_code == 200:
-                                resp_json = enrich_response.json()
-                                for m in resp_json.get("matches", []):
-                                    print(f"        🔍 {m.get('first_name')} {m.get('last_name')} — "
-                                        f"email: {m.get('email')!r}, linkedin: {m.get('linkedin_url')!r}")
-
-                                results = resp_json.get("matches", [])
-                                enriched_batch.extend(results)
-                                print(f"        ✅ Enriched {len(results)} people")
-                            else:
-                                print(f"        ❌ Batch enrich failed: {enrich_response.status_code} — {enrich_response.text[:300]}")
-                                if enrich_response.status_code == 402:
-                                    print(f"        💳 Credit limit reached!")
-                                    reached_end = True
-                                    break
+                            # Debug enrichment response
+                            print(
+                                f"        🔍 RAW: "
+                                f"{enrich_response.text[:500]}"
+                            )
 
                             if enrich_response.status_code != 200:
-                                print(f"        ❌ Batch enrich failed: {enrich_response.status_code} — {enrich_response.text[:300]}")
+                                print(
+                                    f"        ❌ Batch enrich failed: "
+                                    f"{enrich_response.status_code} — "
+                                    f"{enrich_response.text[:300]}"
+                                )
+
                                 if enrich_response.status_code == 402:
-                                    print(f"        💳 Credit limit reached (Apollo-side)!")
+                                    print(
+                                        "        💳 Credit limit reached "
+                                        "(Apollo-side)!"
+                                    )
                                     reached_end = True
+
                                 break
- 
+
                             resp_json = enrich_response.json()
-                            results = resp_json.get("matches", [])
+                            results = resp_json.get("matches") or []
+
+                            for match in results:
+                                print(
+                                    f"        🔍 "
+                                    f"{match.get('first_name')} "
+                                    f"{match.get('last_name')} — "
+                                    f"email: {match.get('email')!r}, "
+                                    f"linkedin: "
+                                    f"{match.get('linkedin_url')!r}"
+                                )
  
                             # Apollo bills per record that actually returns enriched data
                             # (i.e. has data, not just an empty stub match). Use presence
@@ -936,10 +1015,29 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                             credits_used_this_run += records_with_data
  
                             enriched_batch.extend(results)
+                            raw_enriched_all.extend(results)
                             print(f"        ✅ Enriched {len(results)} people "
                                   f"({records_with_data} billed) — "
                                   f"credits used this run: {credits_used_this_run}/{MAX_API_CALLS_PER_RUN}")
- 
+                            
+                            # Progressive raw export every 50 contacts
+                            if len(raw_enriched_all) % 50 == 0:
+                                try:
+                                    raw_progress_file = (
+                                        BASE_DIR
+                                        / f"apollo_raw_progress_{len(raw_enriched_all)}_"
+                                          f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                                    )
+                                    with open(raw_progress_file, "w", encoding="utf-8") as file:
+                                        json.dump(raw_enriched_all, file, indent=2, ensure_ascii=False)
+                                    print(f"        💾 Progressive raw save: {len(raw_enriched_all)} contacts")
+                                except Exception as e:
+                                    print(f"        ⚠ Progressive save error: {e}")
+                            
+                            print(f"        ✅ Enriched {len(results)} people "
+                                  f"({records_with_data} billed) — "
+                                  f"credits used this run: {credits_used_this_run}/{MAX_API_CALLS_PER_RUN}")
+                            
                             # HARD CAP: stop the instant we've hit or exceeded the
                             # configured credit budget, not just "check next loop"
                             if credits_used_this_run >= MAX_API_CALLS_PER_RUN:
@@ -949,16 +1047,33 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
  
                             time.sleep(0.5)
  
-                        if reached_end:
-                            break
-                        
+ 
                         print(f"    ✅ Enriched {len(enriched_batch)} people, now filtering...")
+
+                        # ===== STEP 1: SAVE RAW ENRICHED DATA (BEFORE FILTERING) =====
+                        # This saves ALL data regardless of MAX_COMPANIES_PER_DAY
+                        if enriched_batch:
+                            try:
+                                # Save page-by-page raw data
+                                raw_page_file = (
+                                    BASE_DIR
+                                    / f"apollo_raw_page_{page}_combo_{combo_idx+1}_"
+                                      f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                                )
+                                with open(raw_page_file, "w", encoding="utf-8") as file:
+                                    json.dump(enriched_batch, file, indent=2, ensure_ascii=False)
+                                print(f"    💾 Saved {len(enriched_batch)} RAW enriched contacts from page {page}")
+                            except Exception as e:
+                                print(f"    ⚠ Error saving raw page data: {e}")
                         
-                        # ===== STEP 2: FILTER ENRICHED PEOPLE =====
+                        # ===== STEP 2: FILTER ENRICHED PEOPLE (RESPECTS MAX_COMPANIES_PER_DAY) =====
+                        filtered_this_page = 0
                         for enriched_person in enriched_batch:
+                            # Check if we've reached the daily limit for FILTERED contacts
                             if len(all_enriched) >= MAX_COMPANIES_PER_DAY:
+                                print(f"    🏆 Daily limit reached: {len(all_enriched)} filtered contacts")
                                 break
-                            
+
                             # Skip if already seen
                             person_id = enriched_person.get("id")
                             if not person_id or person_id in seen_person_ids:
@@ -1004,7 +1119,7 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                             
                             seen_emails_this_run.add(email)
                             
-                            # Add to results
+                            # Add to results (FILTERED contacts - respects MAX_COMPANIES_PER_DAY)
                             all_enriched.append({
                                 "first_name": enriched_person.get("first_name", ""),
                                 "last_name": enriched_person.get("last_name", ""),
@@ -1012,6 +1127,7 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                                 "title": enriched_person.get("title", ""),
                                 "organization": org,
                             })
+                            filtered_this_page += 1
                             
                             # Add to existing domains to avoid duplicates in same run
                             try:
@@ -1021,16 +1137,38 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                             
                             print(f"    ✓ [{len(all_enriched)}] {email} ({org.get('name', 'Unknown')}) - {domain}")
                         
-                        # Save progress after each page
-                        save_apollo_pagination_state(
-                            DB_PATH, page, f"{combo_idx}", 
-                            total_processed_this_run + len(all_enriched)
-                        )
-                        
+                        # Save filtered progress after this page
+                        if filtered_this_page > 0:
+                            save_apollo_pagination_state(
+                                DB_PATH,
+                                page=page,
+                                cursor=None,
+                                total=total_processed_this_run + len(all_enriched),
+                                filter_index=combo_idx,
+                            )
+                            
+                            # Also save filtered data progressively
+                            if all_enriched:
+                                try:
+                                    filtered_progress_file = (
+                                        BASE_DIR
+                                        / f"apollo_filtered_progress_{len(all_enriched)}_"
+                                          f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                                    )
+                                    with open(filtered_progress_file, "w", encoding="utf-8") as file:
+                                        json.dump(all_enriched, file, indent=2, ensure_ascii=False)
+                                    print(f"    💾 Progressive filtered save: {len(all_enriched)} contacts")
+                                except Exception as e:
+                                    print(f"    ⚠ Error saving filtered progress: {e}")
+
                         if len(all_enriched) >= MAX_COMPANIES_PER_DAY:
-                            print(f"    🏆 Target reached: {len(all_enriched)} contacts")
+                            print(f"    🏆 Target reached: {len(all_enriched)} filtered contacts")
                             break
-                        
+
+                        if reached_end:
+                            print("    ⚠️ Current page processed; stopping at credit cap.")
+                            break
+
                         page += 1
                         time.sleep(CRAWL_DELAY)
                         
@@ -1041,18 +1179,63 @@ def fetch_from_source(source_id: str, source_config: Dict) -> List[Dict]:
                 if len(all_enriched) >= MAX_COMPANIES_PER_DAY:
                     break
             
-            # Process enriched data
-            print(f"    ✓ Apollo enrichment complete: {len(all_enriched)} new contacts found")
+            # ===== FINAL EXPORTS =====
+            
+            # 1. Export ALL RAW enriched data (unfiltered, all contacts)
+            if raw_enriched_all:
+                raw_output_file = (
+                    BASE_DIR
+                    / f"apollo_raw_enriched_all_"
+                    f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                )
+                try:
+                    with open(raw_output_file, "w", encoding="utf-8") as file:
+                        json.dump(raw_enriched_all, file, indent=2, ensure_ascii=False)
+                    print(f"    💾 FINAL RAW: Saved {len(raw_enriched_all)} RAW Apollo contacts to {raw_output_file}")
+                except Exception as e:
+                    print(f"    ⚠ Error saving raw data: {e}")
+            else:
+                print("    ⚠ No raw Apollo contacts available for export")
+                        
+            # 2. Export FILTERED data (respects MAX_COMPANIES_PER_DAY)
             if all_enriched:
-                print(f"    🔍 First enriched contact: {all_enriched[0].get('first_name')} {all_enriched[0].get('last_name')} - {all_enriched[0].get('email')}")
-            companies = parser({'people': all_enriched})
-            print(f"    → Found {len(companies)} companies from {len(all_enriched)} contacts")
-            return companies
+                filtered_output_file = (
+                    BASE_DIR
+                    / f"apollo_filtered_final_{len(all_enriched)}_"
+                    f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                )
+                try:
+                    with open(filtered_output_file, "w", encoding="utf-8") as file:
+                        json.dump(all_enriched, file, indent=2, ensure_ascii=False)
+                    print(f"    💾 FINAL FILTERED: Saved {len(all_enriched)} FILTERED Apollo contacts to {filtered_output_file}")
+                except Exception as e:
+                    print(f"    ⚠ Error saving filtered data: {e}")
+                            
+                # Process filtered data into companies format
+                companies = parser({"people": all_enriched})
+                print(f"    → Found {len(companies)} companies from {len(all_enriched)} filtered contacts")
+                            
+                # Also save the companies format
+                companies_output_file = (
+                    BASE_DIR
+                    / f"contacts_apollo_{len(companies)}_"
+                    f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                )
+                try:
+                    with open(companies_output_file, "w", encoding="utf-8") as file:
+                        json.dump(companies, file, indent=2, ensure_ascii=False)
+                    print(f"    💾 Saved {len(companies)} company records to {companies_output_file}")
+                except Exception as e:
+                    print(f"    ⚠ Error saving companies data: {e}")
+                            
+                return companies
+            else:
+                print("    ⚠ No Apollo contacts passed filtering")
+                return []
 
     except Exception as e:
-        print(f"    ✗ Error fetching source: {e}")
+        print(f"    ✗ Error fetching source {source_id}: {e}")
         return []
-
 # ===== MAIN FUNCTIONS =====
 
 def discover_companies_from_yaml_only() -> List[Dict]:
@@ -1257,292 +1440,6 @@ def ensure_crawler_metadata(conn):
         )
     """)
    
-def process_companies(
-    companies: List[Dict],
-    max_companies: int = MAX_COMPANIES_PER_DAY,
-    state_name: str = "hunter_all",
-):
-    """Process companies and fetch contacts through Hunter.io."""
-
-    hunter_state = get_hunter_pagination_state(
-        DB_PATH,
-        state_name,
-    )
-
-    start_index = hunter_state["companies_completed"]
-    total_contacts_collected = hunter_state["total_contacts"]
-    saved_last_domain = hunter_state["last_domain"]
-
-    # Check if we've already processed all companies
-    if start_index >= len(companies):
-        print(f"✅ All {len(companies)} companies already processed. Nothing to do.")
-        return []
-
-    batch_changed = False
-
-    if start_index > 0:
-        if start_index > len(companies):
-            batch_changed = True
-        else:
-            previous_company = companies[start_index - 1]
-            try:
-                previous_domain = extract_domain(previous_company["url"])
-                if previous_domain != saved_last_domain:
-                    batch_changed = True
-            except:
-                batch_changed = True
-
-    if batch_changed:
-        print("🔄 New or changed company batch detected; resetting cursor.")
-        start_index = 0
-        total_contacts_collected = 0
-
-        with sqlite3.connect(DB_PATH, timeout=30.0) as state_conn:
-            state_conn.execute(
-                "DELETE FROM crawler_metadata WHERE source_name = ?",
-                (state_name,),
-            )
-
-    results = []
-    total_api_calls_used = 0
-    companies_processed_this_run = 0
-
-    conn = sqlite3.connect(DB_PATH, timeout=30.0)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=30000")
-
-    try:
-        # Calculate how many companies we can process (respecting max_companies)
-        remaining_companies = len(companies) - start_index
-        companies_to_process = min(max_companies, remaining_companies)
-        
-        batch = companies[start_index:start_index + companies_to_process]
-        print(f"  processing {len(batch)} companies (starting at index {start_index + 1})\n")
-
-        for i, company in enumerate(batch, start_index + 1):
-            if total_api_calls_used >= MAX_API_CALLS_PER_RUN:
-                print(
-                    f"⚠️ Hunter API limit reached "
-                    f"({total_api_calls_used}/"
-                    f"{MAX_API_CALLS_PER_RUN})"
-                )
-                break
-            
-            try:
-                domain = extract_domain(company["url"])
-                company_name = company.get("name") or domain
-
-                print(
-                    f"[{i}/{len(companies)}] 🔍 "
-                    f"{company_name} ({domain})"
-                )
-
-                hunter_data, api_calls_used = hunter_domain_search(
-                    domain,
-                    max_contacts=MAX_CONTACTS_PER_COMPANY,
-                    max_api_calls=(
-                        MAX_API_CALLS_PER_RUN - total_api_calls_used
-                    ),
-                )
-
-                total_api_calls_used += api_calls_used
-
-                organization, contacts = extract_ranked_contacts(
-                    hunter_data,
-                    domain,
-                )
-
-                conn.execute(
-                    "INSERT OR IGNORE INTO companies (domain, organization) VALUES (?, ?)",
-                    (domain, organization if contacts else domain),
-                )
-
-                total_contacts_collected += len(contacts)
-                companies_processed_this_run += 1
-
-                save_hunter_pagination_state(
-                    conn,
-                    state_name=state_name,
-                    companies_completed=i,
-                    last_domain=domain,
-                    total_contacts=total_contacts_collected,
-                )
-
-                if contacts:
-                    print(
-                        f"    ✓ Found {len(contacts)} contacts "
-                        f"(used {api_calls_used} API call(s))"
-                    )
-
-                    results.append({
-                        "company": company_name,
-                        "domain": domain,
-                        "organization": organization,
-                        "contacts": contacts,
-                    })
-                else:
-                    print(
-                        f"    ✗ No contacts found "
-                        f"(used {api_calls_used} API call(s))"
-                    )
-
-                if i % 10 == 0:
-                    conn.commit()
-
-                time.sleep(CRAWL_DELAY)
-
-            except Exception as e:
-                print(f"    ✗ Error: {e}")
-                conn.rollback()
-                time.sleep(CRAWL_DELAY * 2)
-
-        conn.commit()  # Final commit
-
-        final_state = get_hunter_pagination_state(
-            DB_PATH,
-            state_name,
-        )
-
-        print("\n" + "=" * 60)
-        print("HUNTER RUN SUMMARY")
-        print("=" * 60)
-        print(f"Companies processed this run: {companies_processed_this_run}")
-        print(
-            f"Companies completed overall: "
-            f"{final_state['companies_completed']}/{len(companies)}"
-        )
-        print(f"Contacts collected overall: {final_state['total_contacts']}")
-        print(f"API calls used this run: {total_api_calls_used}")
-        print("=" * 60)
-
-    finally:
-        conn.close()
-    
-    # Save results
-    if results:
-        output_file = BASE_DIR / f"contacts_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(results, f, indent=2)
-        print(f"\n✓ Saved {len(results)} companies with contacts to {output_file}")
-    
-    return results
-
-def init_db():
-    with sqlite3.connect(DB_PATH, timeout=30.0) as conn:
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=30000")
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS companies (
-            id INTEGER PRIMARY KEY,
-            domain TEXT UNIQUE,
-            organization TEXT,
-            category TEXT DEFAULT 'open',
-            last_checked TEXT,
-            discovered_from TEXT,
-            source_name TEXT,
-            metadata TEXT
-        )
-        """)
-
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS contacts (
-            id INTEGER PRIMARY KEY,
-            company_id INTEGER,
-            email TEXT,
-            name TEXT,
-            position TEXT,             
-            department TEXT,            
-            confidence INTEGER,
-            type TEXT,
-            is_decision_maker INTEGER DEFAULT 0,
-            contacted INTEGER DEFAULT 0,
-            contacted_at TEXT,
-            last_error TEXT,
-            retry_count INTEGER DEFAULT 0,
-            UNIQUE(company_id, email),
-            FOREIGN KEY(company_id) REFERENCES companies(id)
-        )
-        """)
-
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS crawler_metadata (
-            source_name TEXT PRIMARY KEY,
-            last_page INTEGER,
-            last_cursor TEXT,
-            total_processed INTEGER,
-            updated_at TEXT
-        )
-        """)
-
-        # Add missing columns if they don't exist
-        columns_to_add = [
-            ("companies", "category", "TEXT DEFAULT 'open'"),
-            ("contacts", "retry_count", "INTEGER DEFAULT 0"),
-            ("contacts", "position", "TEXT"),
-            ("contacts", "department", "TEXT"),
-            ("contacts", "is_decision_maker", "INTEGER DEFAULT 0"),
-        ]
-        
-        for table, column, col_type in columns_to_add:
-            try:
-                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
-            except sqlite3.OperationalError:
-                pass  # Column already exists
-
-        conn.commit()
-    print("✅ Database initialized with WAL mode")
-
-def import_json_contacts(json_path: Path):
-    data = json.loads(json_path.read_text(encoding="utf-8"))
-    
-    conn = sqlite3.connect(DB_PATH, timeout=30.0)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=30000")
-    
-    try:
-        for item in data:
-            domain = (item.get("domain") or "").strip()
-            if not domain:
-                continue
-            
-            conn.execute(
-                """
-                INSERT OR IGNORE INTO companies 
-                (domain, organization, category) 
-                VALUES(?, ?, ?)
-                """,
-                (domain, item.get("organization") or item.get("company") or domain, 'open'),
-            )
-            
-            company_id = conn.execute(
-                "SELECT id FROM companies WHERE domain = ?",
-                (domain,),
-            ).fetchone()[0]
-            
-            for c in item.get("contacts", []):
-                email = (c.get("email") or "").strip()
-                if not email:
-                    continue
-                
-                conn.execute(
-                    """
-                    INSERT OR IGNORE INTO contacts
-                    (company_id, email, name, confidence, type, contacted)
-                    VALUES (?, ?, ?, ?, ?, 0)
-                    """,
-                    (
-                        company_id,
-                        email,
-                        c.get("name"),
-                        c.get("confidence"),
-                        c.get("type"),
-                    ),
-                )
-        
-        conn.commit()
-    finally:
-        conn.close()
-
 def process_companies_apollo(companies: List[Dict], max_companies: int = None):
     """Process Apollo results directly into DB — no Hunter call needed"""
     if max_companies is None:
@@ -1611,7 +1508,7 @@ def process_companies_apollo(companies: List[Dict], max_companies: int = None):
                     print(f"    ⏭ Max contacts reached for {domain}")
                     continue
 
-                # Insert contact directly
+                # Insert contact - SET contacted = 0 (pending)
                 conn.execute(
                     """
                     INSERT OR IGNORE INTO contacts
@@ -1653,6 +1550,561 @@ def process_companies_apollo(companies: List[Dict], max_companies: int = None):
             json.dump(results, f, indent=2)
         print(f"\n✓ Saved {len(results)} Apollo contacts to {output_file}")
 
+    return results
+
+def init_db():
+    with sqlite3.connect(DB_PATH, timeout=30.0) as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS companies (
+            id INTEGER PRIMARY KEY,
+            domain TEXT UNIQUE,
+            organization TEXT,
+            category TEXT DEFAULT 'open',
+            last_checked TEXT,
+            discovered_from TEXT,
+            source_name TEXT,
+            metadata TEXT
+        )
+        """)
+
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS contacts (
+            id INTEGER PRIMARY KEY,
+            company_id INTEGER,
+            email TEXT,
+            name TEXT,
+            position TEXT,             
+            department TEXT,            
+            confidence INTEGER,
+            type TEXT,
+            is_decision_maker INTEGER DEFAULT 0,
+            contacted INTEGER DEFAULT 0,
+            contacted_at TEXT,
+            last_error TEXT,
+            retry_count INTEGER DEFAULT 0,
+            UNIQUE(company_id, email),
+            FOREIGN KEY(company_id) REFERENCES companies(id)
+        )
+        """)
+
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS crawler_metadata (
+            source_name TEXT PRIMARY KEY,
+            last_page INTEGER,
+            last_cursor TEXT,
+            total_processed INTEGER,
+            updated_at TEXT
+        )
+        """)
+
+        # Add missing columns if they don't exist
+        columns_to_add = [
+            ("companies", "category", "TEXT DEFAULT 'open'"),
+            ("contacts", "retry_count", "INTEGER DEFAULT 0"),
+            ("contacts", "position", "TEXT"),
+            ("contacts", "department", "TEXT"),
+            ("contacts", "is_decision_maker", "INTEGER DEFAULT 0"),
+        ]
+        
+        for table, column, col_type in columns_to_add:
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
+        conn.commit()
+    print("✅ Database initialized with WAL mode")
+
+def import_json_contacts(json_file: Path):
+    """Import a contacts JSON file directly, without interactive selection."""
+    try:
+        with open(json_file, "r", encoding="utf-8") as file:
+            data = json.load(file)
+
+        if not isinstance(data, list):
+            print(f"⚠ Skipping {json_file.name}: expected a JSON list")
+            return
+
+        imported = 0
+        with sqlite3.connect(DB_PATH, timeout=30.0) as conn:
+            conn.execute("PRAGMA busy_timeout=30000")
+            for company_data in data:
+                if not isinstance(company_data, dict):
+                    continue
+
+                domain = (company_data.get("domain") or "").strip().lower()
+                if not domain and company_data.get("url"):
+                    domain = extract_domain(company_data["url"])
+                if not domain:
+                    continue
+
+                organization = (
+                    company_data.get("organization")
+                    or company_data.get("company")
+                    or domain
+                )
+                conn.execute(
+                    "INSERT OR IGNORE INTO companies (domain, organization, source_name) VALUES (?, ?, ?)",
+                    (domain, organization, json_file.name),
+                )
+                company_id = conn.execute(
+                    "SELECT id FROM companies WHERE domain = ?", (domain,)
+                ).fetchone()[0]
+
+                for contact in company_data.get("contacts", []) or []:
+                    if not isinstance(contact, dict):
+                        continue
+                    email = (contact.get("email") or "").strip().lower()
+                    if not email:
+                        continue
+                    result = conn.execute(
+                        """INSERT OR IGNORE INTO contacts
+                        (company_id, email, name, position, department, confidence,
+                         type, is_decision_maker, contacted)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)""",
+                        (company_id, email, contact.get("name", ""),
+                         contact.get("position", ""), contact.get("department", ""),
+                         contact.get("confidence", 70), contact.get("type", "personal"),
+                         1 if contact.get("is_decision_maker") else 0),
+                    )
+                    imported += result.rowcount
+
+        print(f"📥 Imported {imported} contacts from {json_file.name}")
+    except Exception as error:
+        print(f"❌ Error importing {json_file.name}: {error}")
+
+def import_json_only():
+    """Import JSON contacts into database with file selection"""
+    print("\n" + "=" * 60)
+    print("📥 IMPORT JSON CONTACTS TO DATABASE")
+    print("=" * 60)
+
+    json_files = list(BASE_DIR.glob("contacts_apollo*.json")) + list(BASE_DIR.glob("contacts*.json"))
+    if not json_files:
+        print("❌ No contacts*.json files found!")
+        print("💡 Run the crawler first to generate contact files")
+        return
+
+    json_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+    print("\n📄 Available JSON files:")
+    for i, json_file in enumerate(json_files[:20], 1):
+        mtime = datetime.fromtimestamp(json_file.stat().st_mtime)
+        mtime_str = mtime.strftime("%Y-%m-%d %H:%M")
+        size = json_file.stat().st_size / 1024
+        print(f"   {i}. {json_file.name} ({size:.1f} KB, {mtime_str})")
+
+    print("\n   Enter number to import specific file")
+    print("   Press Enter for latest file")
+    print("   Type 'all' to import all files")
+
+    file_choice = input("\nSelect file to import: ").strip()
+
+    files_to_import = []
+
+    if file_choice.lower() == 'all':
+        files_to_import = json_files
+        print(f"\n📋 Will import ALL {len(files_to_import)} files")
+    elif file_choice == '':
+        files_to_import = [json_files[0]]
+        print(f"\n📋 Using latest file: {json_files[0].name}")
+    elif file_choice.isdigit():
+        idx = int(file_choice) - 1
+        if 0 <= idx < len(json_files):
+            files_to_import = [json_files[idx]]
+            print(f"\n📋 Using file: {json_files[idx].name}")
+        else:
+            print("❌ Invalid choice, using latest file.")
+            files_to_import = [json_files[0]]
+    else:
+        print("❌ Invalid choice, using latest file.")
+        files_to_import = [json_files[0]]
+
+    total_imported = 0
+    total_skipped = 0
+    total_files = 0
+
+    for json_file in files_to_import:
+        print(f"\n{'=' * 60}")
+        print(f"📖 Processing: {json_file.name}")
+        print(f"{'=' * 60}")
+
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            if not data:
+                print("❌ JSON file is empty!")
+                continue
+
+            print(f"📊 Found {len(data)} items in JSON")
+
+            # Convert Apollo metadata format to company format
+            converted_data = []
+            for item in data:
+                # Check if this is Apollo metadata format
+                if 'metadata' in item and isinstance(item['metadata'], dict):
+                    metadata = item['metadata']
+                    
+                    # Get domain from URL
+                    url = item.get('url', '')
+                    domain = ''
+                    if url:
+                        try:
+                            from urllib.parse import urlparse
+                            parsed = urlparse(url)
+                            domain = parsed.netloc
+                        except:
+                            domain = url.replace('http://', '').replace('https://', '').split('/')[0]
+                    
+                    if not domain:
+                        continue
+                    
+                    # Build company record with contacts
+                    converted_item = {
+                        'domain': domain,
+                        'organization': item.get('name', domain),
+                        'contacts': []
+                    }
+                    
+                    # Add contact from metadata
+                    contact_email = metadata.get('contact_email', '')
+                    if contact_email:
+                        converted_item['contacts'].append({
+                            'email': contact_email,
+                            'name': metadata.get('contact_name', ''),
+                            'position': metadata.get('contact_title', ''),
+                            'confidence': 90,
+                            'type': 'personal',
+                            'is_decision_maker': True
+                        })
+                    
+                    if converted_item['contacts']:
+                        converted_data.append(converted_item)
+                else:
+                    # Already in company format
+                    converted_data.append(item)
+
+            print(f"✅ {len(converted_data)} companies with contacts after conversion")
+
+            if not converted_data:
+                print("❌ No companies with contacts found in JSON!")
+                continue
+
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=5000")
+            cursor = conn.cursor()
+
+            imported = 0
+            skipped = 0
+
+            for company_data in converted_data:
+                domain = (company_data.get('domain', '') or '').strip().lower()
+                if not domain:
+                    print(f"   ⚠ Skipping item with no domain: {company_data.get('company', 'Unknown')}")
+                    continue
+
+                org_name = company_data.get('organization', '') or company_data.get('company', '') or domain
+
+                cursor.execute("""
+                    INSERT OR IGNORE INTO companies (domain, organization, source_name)
+                    VALUES (?, ?, ?)
+                """, (domain, org_name, json_file.name))
+
+                result = cursor.execute("SELECT id FROM companies WHERE domain = ?", (domain,)).fetchone()
+                if result is None:
+                    print(f"   ⚠ Could not insert/find company: {domain}")
+                    continue
+
+                company_id = result[0]
+
+                contacts = company_data.get('contacts', [])
+                for contact in contacts:
+                    email = (contact.get('email', '') or '').strip().lower()
+                    if not email:
+                        continue
+
+                    cursor.execute("""
+                        SELECT id FROM contacts 
+                        WHERE company_id = ? AND email = ?
+                    """, (company_id, email))
+
+                    if cursor.fetchone():
+                        skipped += 1
+                        continue
+
+                    cursor.execute("""
+                        INSERT INTO contacts
+                        (company_id, email, name, position, confidence, type, is_decision_maker, contacted)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+                    """, (
+                        company_id,
+                        email,
+                        (contact.get('name', '') or '').strip(),
+                        (contact.get('position', '') or '').strip(),
+                        contact.get('confidence', 70),
+                        contact.get('type', 'personal'),
+                        1 if contact.get('is_decision_maker') else 0,
+                    ))
+                    imported += 1
+
+                if imported % 10 == 0:
+                    conn.commit()
+                    print(f"   📊 Progress: {converted_data.index(company_data) + 1}/{len(converted_data)} companies, {imported} contacts imported")
+
+            conn.commit()
+            conn.close()
+
+            print(f"\n   ✅ Added {len(converted_data)} companies")
+            print(f"   📥 Imported: {imported} new contacts")
+            print(f"   ⏭️  Skipped: {skipped} duplicates")
+
+            total_imported += imported
+            total_skipped += skipped
+            total_files += 1
+
+        except Exception as e:
+            print(f"❌ Error importing {json_file.name}: {e}")
+            import traceback
+            traceback.print_exc()
+
+    print(f"\n{'=' * 60}")
+    print("📊 IMPORT SUMMARY")
+    print(f"{'=' * 60}")
+    print(f"📁 Files processed: {total_files}")
+    print(f"📥 New contacts imported: {total_imported}")
+    print(f"⏭️  Duplicates skipped: {total_skipped}")
+    print(f"💾 Database: {DB_PATH.name}")
+    print(f"{'=' * 60}")
+
+    if total_imported > 0:
+        csv_file = BASE_DIR / f"imported_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['email', 'name', 'domain', 'organization', 'type', 'imported_at'])
+            
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT c.email, c.name, co.domain, co.organization, c.type, c.contacted_at
+                FROM contacts c
+                JOIN companies co ON c.company_id = co.id
+                ORDER BY co.domain, c.email
+                LIMIT 1000
+            """)
+            for row in cursor.fetchall():
+                writer.writerow(row)
+            conn.close()
+        
+        print(f"📄 CSV saved: {csv_file.name} (first 1000 contacts)")
+
+def process_companies(
+    companies: List[Dict],
+    max_companies: int = MAX_COMPANIES_PER_DAY,
+    state_name: str = "hunter_all",
+):
+    """Process companies and fetch contacts through Hunter.io."""
+    
+    # ===== FIRST: Check if we already have contacts from Apollo =====
+    conn_check = sqlite3.connect(DB_PATH, timeout=30.0)
+    conn_check.execute("PRAGMA journal_mode=WAL")
+    
+    # Get all companies that already have contacts
+    existing_contacts = conn_check.execute("""
+        SELECT DISTINCT co.domain 
+        FROM companies co
+        INNER JOIN contacts c ON c.company_id = co.id
+    """).fetchall()
+    
+    existing_domains_with_contacts = {row[0] for row in existing_contacts}
+    conn_check.close()
+    
+    print(f"📊 {len(existing_domains_with_contacts)} companies already have contacts in DB")
+    
+    # Filter out companies that already have contacts
+    companies_to_process = []
+    for company in companies:
+        try:
+            domain = extract_domain(company["url"])
+            if domain not in existing_domains_with_contacts:
+                companies_to_process.append(company)
+            else:
+                print(f"   ⏭ Skipping {domain} - already has contacts")
+        except:
+            continue
+    
+    print(f"📊 {len(companies_to_process)} companies need Hunter.io processing")
+    
+    if not companies_to_process:
+        print("✅ All companies already have contacts. Skipping Hunter.io.")
+        return []
+    
+    # ===== Continue with Hunter.io for companies that need it =====
+    hunter_state = get_hunter_pagination_state(
+        DB_PATH,
+        state_name,
+    )
+
+    start_index = hunter_state["companies_completed"]
+    total_contacts_collected = hunter_state["total_contacts"]
+    saved_last_domain = hunter_state["last_domain"]
+
+    # Check if we've already processed all companies
+    if start_index >= len(companies_to_process):
+        print(f"✅ All {len(companies_to_process)} companies already processed. Nothing to do.")
+        return []
+
+    batch_changed = False
+
+    if start_index > 0:
+        if start_index > len(companies_to_process):
+            batch_changed = True
+        else:
+            previous_company = companies_to_process[start_index - 1]
+            try:
+                previous_domain = extract_domain(previous_company["url"])
+                if previous_domain != saved_last_domain:
+                    batch_changed = True
+            except:
+                batch_changed = True
+
+    if batch_changed:
+        print("🔄 New or changed company batch detected; resetting cursor.")
+        start_index = 0
+        total_contacts_collected = 0
+
+        with sqlite3.connect(DB_PATH, timeout=30.0) as state_conn:
+            state_conn.execute(
+                "DELETE FROM crawler_metadata WHERE source_name = ?",
+                (state_name,),
+            )
+
+    results = []
+    total_api_calls_used = 0
+    companies_processed_this_run = 0
+
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+
+    try:
+        # Calculate how many companies we can process (respecting max_companies)
+        remaining_companies = len(companies_to_process) - start_index
+        companies_to_process_batch = min(max_companies, remaining_companies)
+        
+        batch = companies_to_process[start_index:start_index + companies_to_process_batch]
+        print(f"  processing {len(batch)} companies (starting at index {start_index + 1})\n")
+
+        for i, company in enumerate(batch, start_index + 1):
+            if total_api_calls_used >= MAX_API_CALLS_PER_RUN:
+                print(
+                    f"⚠️ Hunter API limit reached "
+                    f"({total_api_calls_used}/"
+                    f"{MAX_API_CALLS_PER_RUN})"
+                )
+                break
+            
+            try:
+                domain = extract_domain(company["url"])
+                company_name = company.get("name") or domain
+
+                print(
+                    f"[{i}/{len(companies_to_process)}] 🔍 "
+                    f"{company_name} ({domain})"
+                )
+
+                hunter_data, api_calls_used = hunter_domain_search(
+                    domain,
+                    max_contacts=MAX_CONTACTS_PER_COMPANY,
+                    max_api_calls=(
+                        MAX_API_CALLS_PER_RUN - total_api_calls_used
+                    ),
+                )
+
+                total_api_calls_used += api_calls_used
+
+                organization, contacts = extract_ranked_contacts(
+                    hunter_data,
+                    domain,
+                )
+
+                # Only insert if we have contacts
+                if contacts:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO companies (domain, organization) VALUES (?, ?)",
+                        (domain, organization if contacts else domain),
+                    )
+
+                    total_contacts_collected += len(contacts)
+                    companies_processed_this_run += 1
+
+                    save_hunter_pagination_state(
+                        conn,
+                        state_name=state_name,
+                        companies_completed=i,
+                        last_domain=domain,
+                        total_contacts=total_contacts_collected,
+                    )
+
+                    print(
+                        f"    ✓ Found {len(contacts)} contacts "
+                        f"(used {api_calls_used} API call(s))"
+                    )
+
+                    results.append({
+                        "company": company_name,
+                        "domain": domain,
+                        "organization": organization,
+                        "contacts": contacts,
+                    })
+                else:
+                    print(
+                        f"    ✗ No contacts found "
+                        f"(used {api_calls_used} API call(s))"
+                    )
+
+                if i % 10 == 0:
+                    conn.commit()
+
+                time.sleep(CRAWL_DELAY)
+
+            except Exception as e:
+                print(f"    ✗ Error: {e}")
+                conn.rollback()
+                time.sleep(CRAWL_DELAY * 2)
+
+        conn.commit()  # Final commit
+
+        final_state = get_hunter_pagination_state(
+            DB_PATH,
+            state_name,
+        )
+
+        print("\n" + "=" * 60)
+        print("HUNTER RUN SUMMARY")
+        print("=" * 60)
+        print(f"Companies processed this run: {companies_processed_this_run}")
+        print(
+            f"Companies completed overall: "
+            f"{final_state['companies_completed']}/{len(companies_to_process)}"
+        )
+        print(f"Contacts collected overall: {final_state['total_contacts']}")
+        print(f"API calls used this run: {total_api_calls_used}")
+        print("=" * 60)
+
+    finally:
+        conn.close()
+    
+    # Save results
+    if results:
+        output_file = BASE_DIR / f"contacts_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=2)
+        print(f"\n✓ Saved {len(results)} companies with contacts to {output_file}")
+    
     return results
 
 def get_hunter_pagination_state(
@@ -1844,14 +2296,13 @@ def main():
     # 1) Initialize database schema
     init_db()
 
-    # 2) Import contacts from JSON files BEFORE doing anything else
+    # 2) Import ALL existing JSON contacts before running
     json_files = list(BASE_DIR.glob("contacts*.json"))
     if json_files:
-        # Sort by modification time (newest first)
         json_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-        latest_file = json_files[0]
-        print(f"📥 Importing contacts from: {latest_file.name}")
-        import_json_contacts(latest_file)
+        print(f"📥 Found {len(json_files)} JSON files to import")
+        for json_file in json_files:
+            import_json_contacts(json_file)
     else:
         print("No contacts*.json files found.")
 
@@ -1861,12 +2312,28 @@ def main():
         print("No companies found. Exiting.")
         return
 
-    # 4) Process companies with Hunter.io using env var for limit
+    # 4) Process companies with Hunter.io
     max_to_process = min(MAX_COMPANIES_PER_DAY, len(companies))
+    process_companies(
+        companies,
+        max_companies=max_to_process,
+        state_name="hunter_all",
+    )
+
+    # 5) Import ANY new JSON files after processing
+    json_files_after = list(BASE_DIR.glob("contacts*.json"))
+    if json_files_after:
+        json_files_after.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        # Check if there are files newer than the import
+        if json_files_after:
+            print(f"\n📥 Final import of any new contacts...")
+            for json_file in json_files_after:
+                # Check if this file was already imported (optional)
+                import_json_contacts(json_file)
+
     print("\n" + "=" * 60)
     print("CRAWLER COMPLETE")
     print("=" * 60)
-
 
 if __name__ == "__main__":
     import sys
@@ -1923,6 +2390,14 @@ if __name__ == "__main__":
         print("=" * 60)
 
         init_db()
+        
+        # Import existing JSON files first
+        json_files = list(BASE_DIR.glob("contacts*.json"))
+        if json_files:
+            json_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            for json_file in json_files:
+                print(f"📥 Importing contacts from: {json_file.name}")
+                import_json_contacts(json_file)
 
         sources = load_free_database_sources()
         apollo_config = sources['apollo_people']
@@ -1934,6 +2409,14 @@ if __name__ == "__main__":
             sys.exit(0)
 
         process_companies_apollo(companies, max_companies=MAX_COMPANIES_PER_DAY)
+        
+        # Import Apollo results after run
+        json_files_after = list(BASE_DIR.glob("contacts_apollo*.json"))
+        if json_files_after:
+            json_files_after.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            for json_file in json_files_after:
+                print(f"\n📥 Importing Apollo results from: {json_file.name}")
+                import_json_contacts(json_file)
 
         print("\n" + "=" * 60)
         print("APOLLO CRAWLER COMPLETE")

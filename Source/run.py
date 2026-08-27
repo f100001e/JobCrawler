@@ -9,6 +9,7 @@ import json
 import os
 from dotenv import load_dotenv
 import csv
+from crawler import import_json_contacts, DB_PATH as CRAWLER_DB_PATH
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -29,7 +30,7 @@ def show_menu():
     print("5. Run mailer (send emails) - Normal SMTP")
     print("6. Run mailer - Google Admin IPv4 only")
     print("7. 📧 Test Email (preview formatting, forced IPv4)")
-    print("8. 📧 Test Email - Normal SMTP (NO IPv4)")  # <-- NEW
+    print("8. 📧 Test Email - Normal SMTP (NO IPv4)")
     print("9. Import JSON contacts only")
     print("10. Check database status")
     print("11. Reset contacted status")
@@ -38,9 +39,10 @@ def show_menu():
     print("14. Reset Hunter pagination state")
     print("15. Show Hunter pagination status")
     print("16. Show crawler help")
-    print("17. Exit")
+    print("17. 🔧 Fix pending status (reset Apollo contacts to pending)")
+    print("18. Exit")
 
-    choice = input("\nEnter choice (1-17): ").strip()
+    choice = input("\nEnter choice (1-18): ").strip()
     return choice
 
 
@@ -195,13 +197,129 @@ def test_email_ipv4():
         print("\n⚠️  Test interrupted by user")
 
 
+def fix_pending_status():
+    """Reset all Apollo-sourced contacts to pending (contacted=0)"""
+    print("\n" + "=" * 60)
+    print("🔧 FIX PENDING STATUS")
+    print("=" * 60)
+    
+    if not DB_PATH.exists():
+        print("❌ Database file not found!")
+        return
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA journal_mode=WAL")
+    cur = conn.cursor()
+    
+    # Count current status
+    cur.execute("""
+        SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN contacted = 0 THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN contacted = 1 THEN 1 ELSE 0 END) as sent,
+            SUM(CASE WHEN contacted = -1 THEN 1 ELSE 0 END) as failed
+        FROM contacts 
+        WHERE type = 'personal'
+    """)
+    row = cur.fetchone()
+    total, pending, sent, failed = row
+    
+    print(f"\n📊 Current Apollo (personal) contacts status:")
+    print(f"   Total: {total}")
+    print(f"   Pending (contacted=0): {pending}")
+    print(f"   Sent (contacted=1): {sent}")
+    print(f"   Failed (contacted=-1): {failed}")
+    
+    if sent == 0:
+        print("\n✅ No personal contacts marked as 'sent'. Nothing to fix.")
+        conn.close()
+        return
+    
+    print(f"\n🔄 Found {sent} personal contacts marked as 'sent'")
+    
+    # Options
+    print("\nOptions:")
+    print("1. Reset ALL 'sent' personal contacts to pending")
+    print("2. Reset ONLY Apollo-sourced companies to pending")
+    print("3. Reset ALL contacts (personal + others) to pending")
+    print("4. Cancel")
+    
+    choice = input("\nEnter choice (1-4): ").strip()
+    
+    if choice == "1":
+        cur.execute("""
+            UPDATE contacts 
+            SET contacted = 0, contacted_at = NULL, last_error = NULL, retry_count = 0
+            WHERE type = 'personal' AND contacted = 1
+        """)
+        affected = cur.rowcount
+        conn.commit()
+        print(f"\n✅ Reset {affected} personal contacts to pending")
+        
+    elif choice == "2":
+        # Reset only Apollo-sourced companies
+        cur.execute("""
+            UPDATE contacts 
+            SET contacted = 0, contacted_at = NULL, last_error = NULL, retry_count = 0
+            WHERE company_id IN (
+                SELECT id FROM companies WHERE source_name = 'apollo_people'
+            )
+            AND contacted = 1
+        """)
+        affected = cur.rowcount
+        conn.commit()
+        print(f"\n✅ Reset {affected} Apollo-sourced contacts to pending")
+        
+    elif choice == "3":
+        cur.execute("""
+            UPDATE contacts 
+            SET contacted = 0, contacted_at = NULL, last_error = NULL, retry_count = 0
+            WHERE contacted = 1
+        """)
+        affected = cur.rowcount
+        conn.commit()
+        print(f"\n✅ Reset {affected} ALL contacts to pending")
+        
+    else:
+        print("\nCancelled.")
+        conn.close()
+        return
+    
+    conn.close()
+    
+    # Show updated stats
+    print("\n📊 Updated status:")
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA journal_mode=WAL")
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN contacted = 0 THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN contacted = 1 THEN 1 ELSE 0 END) as sent,
+            SUM(CASE WHEN contacted = -1 THEN 1 ELSE 0 END) as failed
+        FROM contacts 
+        WHERE type = 'personal'
+    """)
+    row = cur.fetchone()
+    total, pending, sent, failed = row
+    print(f"   Total: {total}")
+    print(f"   Pending (contacted=0): {pending}")
+    print(f"   Sent (contacted=1): {sent}")
+    print(f"   Failed (contacted=-1): {failed}")
+    conn.close()
+
+
 def import_json_only():
     """Import JSON contacts into database with file selection"""
     print("\n" + "=" * 60)
     print("📥 IMPORT JSON CONTACTS TO DATABASE")
     print("=" * 60)
 
-    json_files = list(BASE_DIR.glob("contacts*.json"))
+    json_files = (
+        list(BASE_DIR.glob("contacts*.json"))
+        + list(BASE_DIR.glob("apollo*.json"))
+    )
     if not json_files:
         print("❌ No contacts*.json files found!")
         print("💡 Run the crawler first to generate contact files")
@@ -431,7 +549,10 @@ def check_database():
             print(f"   - {source}: {count} companies")
 
     # Show JSON files
-    json_files = list(BASE_DIR.glob("contacts*.json"))
+    json_files = (
+        list(BASE_DIR.glob("contacts*.json"))
+        + list(BASE_DIR.glob("apollo*.json"))
+    )
     print(f"\n📄 JSON Files: {len(json_files)}")
     for json_file in sorted(json_files, key=lambda p: p.stat().st_mtime, reverse=True)[:3]:
         mtime = datetime.fromtimestamp(json_file.stat().st_mtime)
@@ -623,7 +744,7 @@ def main():
             run_mailer_google_admin()
         elif choice == "7":
             test_email_ipv4()
-        elif choice == "8":  # NEW
+        elif choice == "8":
             test_email_normal_smtp()
         elif choice == "9":
             import_json_only()
@@ -642,6 +763,8 @@ def main():
         elif choice == "16":
             show_help()
         elif choice == "17":
+            fix_pending_status()  # <-- NEW: Fix pending status
+        elif choice == "18":
             print("\nExiting. Goodbye!")
             break
         else:
