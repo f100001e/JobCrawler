@@ -35,10 +35,12 @@ def show_menu():
     print("11. Reset contacted status")
     print("12. Reset Apollo pagination state")
     print("13. Show Apollo pagination status")
-    print("14. Show crawler help")
-    print("15. Exit")
+    print("14. Reset Hunter pagination state")
+    print("15. Show Hunter pagination status")
+    print("16. Show crawler help")
+    print("17. Exit")
 
-    choice = input("\nEnter choice (1-15): ").strip()
+    choice = input("\nEnter choice (1-17): ").strip()
     return choice
 
 
@@ -568,6 +570,30 @@ def show_apollo_status():
         conn.close()
 
 
+def reset_hunter_state():
+    print("\n" + "=" * 60)
+    print("RESET HUNTER PAGINATION STATE")
+    print("=" * 60)
+    try:
+        subprocess.run([sys.executable, "crawler.py", "--hunter-reset"], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Reset failed: {e}")
+    except FileNotFoundError:
+        print("❌ crawler.py not found!")
+
+
+def show_hunter_status():
+    print("\n" + "=" * 60)
+    print("HUNTER PAGINATION STATUS")
+    print("=" * 60)
+    try:
+        subprocess.run([sys.executable, "crawler.py", "--hunter-status"], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Status check failed: {e}")
+    except FileNotFoundError:
+        print("❌ crawler.py not found!")
+
+
 def show_help():
     """Show crawler.py help"""
     print("\n" + "=" * 60)
@@ -610,8 +636,12 @@ def main():
         elif choice == "13":
             show_apollo_status()
         elif choice == "14":
+            reset_hunter_state()
+        elif choice == "15":
+            show_hunter_status()
+        elif choice == "16":
             show_help()
-        elif choice == "15":  # Changed from 14
+        elif choice == "17":
             print("\nExiting. Goodbye!")
             break
         else:

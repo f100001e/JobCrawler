@@ -47,16 +47,42 @@ HEADERS = {
 }
 
 # Near HR_KEYWORDS and ENG_KEYWORDS, add:
-DECISION_MAKER_KEYWORDS = (
-"ceo", "cfo", "cto", "coo", "cmo", "chief", "president", "founder", "owner",
-"director", "vp", "vice president", "head of", "manager", "lead", "executive",
-"decision", "strategic", "business", "operations", "product", "sales", "marketing",
-"revenue", "growth", "strategy"
-)
-HR_KEYWORDS = ("hr", "human resources", "recruiting", "talent", "people", "careers", "jobs", "hiring", "director")
-ENG_KEYWORDS = ("engineering", "engineer", "eng", "dev", "developer")
+GENERIC_PREFIXES = set()
 
-GENERIC_PREFIXES = {"jobs", "info", "service", "support", "hello", "contact", "team", "admin", "noreply", "no-reply"}
+DECISION_MAKER_KEYWORDS = (
+    "ceo", "coo", "cfo", "cto", "founder", "owner",
+    "president", "vice president", "director", "executive",
+)
+
+DECISION_MAKER_KEYWORDS += (
+    "cio", "ciso", "chro", "cro", "svp", "evp",
+    "managing director", "managing partner", "partner", "principal"
+)
+
+HR_KEYWORDS = (
+    "hr", "human resources", "recruiter", "recruiting", "recruitment",
+    "talent", "talent acquisition", "people", "people operations",
+    "staffing", "sourcer", "careers", "jobs", "hiring"
+)
+
+ENG_KEYWORDS = (
+    "engineer", "engineering", "developer", "development",
+    "technology", "technical", "data", "product"
+)
+
+ENG_KEYWORDS += (
+    "software", "devops", "platform", "infrastructure",
+    "site reliability", "sre"
+)
+
+GENERIC_PREFIXES |= {
+    "careers", "hr", "recruiting", "hiring", "talent"
+}
+
+BLOCKED_PREFIXES = {
+    "noreply", "no-reply", "no_reply",
+    "donotreply", "do-not-reply", "do_not_reply",
+}
 
 def is_generic_email(email: str) -> bool:
     prefix = email.split("@")[0].lower().split("+")[0]
@@ -1065,50 +1091,123 @@ def discover_companies_from_yaml_only() -> List[Dict]:
 
 # ===== HUNTER.IO INTEGRATION =====
 
-def hunter_domain_search(domain: str) -> dict:
-    """Search for emails using Hunter.io API"""
+def hunter_domain_search(
+    domain: str,
+    max_contacts: int,
+    max_api_calls: int,
+) -> tuple[dict, int]:
+    """Search Hunter.io with limit/offset pagination."""
+
     if not HUNTER_API_KEY:
         raise RuntimeError("Missing HUNTER_API_KEY env var")
 
     url = "https://api.hunter.io/v2/domain-search"
-    params = {"domain": domain, "api_key": HUNTER_API_KEY}
+    offset = 0
+    api_calls_used = 0
+    emails = []
+    seen_emails = set()
+    merged_response = None
 
-    r = requests.get(url, params=params, headers=HEADERS, timeout=30)
-    r.raise_for_status()
-    return r.json()
+    while len(emails) < max_contacts and api_calls_used < max_api_calls:
+        page_limit = min(100, max_contacts - len(emails))
+
+        params = {
+            "domain": domain,
+            "api_key": HUNTER_API_KEY,
+            "limit": page_limit,
+            "offset": offset,
+        }
+
+        response = requests.get(
+            url,
+            params=params,
+            headers=HEADERS,
+            timeout=30,
+        )
+
+        api_calls_used += 1
+        response.raise_for_status()
+        page_response = response.json()
+
+        if merged_response is None:
+            merged_response = page_response
+
+        page_emails = (
+            (page_response.get("data") or {}).get("emails") or []
+        )
+
+        if not page_emails:
+            break
+
+        for email_record in page_emails:
+            email_value = (
+                email_record.get("value") or ""
+            ).strip().lower()
+
+            if email_value and email_value not in seen_emails:
+                seen_emails.add(email_value)
+                emails.append(email_record)
+
+                if len(emails) >= max_contacts:
+                    break
+
+        offset += len(page_emails)
+
+        if len(page_emails) < page_limit:
+            break
+
+        time.sleep(CRAWL_DELAY)
+
+    if merged_response is None:
+        merged_response = {
+            "data": {
+                "organization": domain,
+                "emails": [],
+            }
+        }
+    else:
+        merged_response.setdefault("data", {})["emails"] = emails
+
+    return merged_response, api_calls_used
 
 
-def classify_contact(e: dict) -> int:
-    """Classify contact by type with decision makers as highest priority"""
+def classify_contact(e: dict) -> int | None:
+    """Rank contacts without filtering potentially useful results."""
+
     email = (e.get("value") or "").lower()
-    dept = (e.get("department") or "").lower()
-    etype = (e.get("type") or "").lower()
-    first_name = (e.get("first_name") or "").lower()
-    last_name = (e.get("last_name") or "").lower()
-    full_name = f"{first_name} {last_name}".lower()
+    local_part = email.split("@", 1)[0]
+
+    # Hard exclusion—run before all ranking checks
+    if any(prefix in local_part for prefix in BLOCKED_PREFIXES):
+        return None
+
+    department = (e.get("department") or "").lower()
     position = (e.get("position") or "").lower()
+    email_type = (e.get("type") or "").lower()
+    role_text = f"{department} {position}"
 
-    # Combine all text fields for keyword search
-    all_text = f"{email} {dept} {full_name} {position}"
-
-    # Priority 0: Decision Makers (highest priority)
-    if any(k in all_text for k in DECISION_MAKER_KEYWORDS):
+    if e.get("decision_maker") is True:
         return 0
 
-    # Priority 1: HR contacts
-    if any(k in dept for k in HR_KEYWORDS) or any(k in email for k in HR_KEYWORDS):
+    if any(keyword in role_text for keyword in DECISION_MAKER_KEYWORDS):
+        return 0
+
+    if (
+        any(keyword in role_text for keyword in HR_KEYWORDS)
+        or local_part in GENERIC_PREFIXES
+    ):
         return 1
 
-    # Priority 2: Engineering contacts
-    if any(k in dept for k in ENG_KEYWORDS) or any(k in email for k in ENG_KEYWORDS):
+    if any(keyword in role_text for keyword in ENG_KEYWORDS):
         return 2
 
-    # Priority 3: Generic contacts
-    if etype == "generic":
+    if email_type == "personal":
         return 3
 
-    # Priority 4: All others (will be filtered out)
-    return 4
+    if email_type == "generic":
+        return 4
+
+    return 5
 
 
 def extract_ranked_contacts(hunter_response: dict, domain: str) -> tuple[str, list[dict]]:
@@ -1123,12 +1222,7 @@ def extract_ranked_contacts(hunter_response: dict, domain: str) -> tuple[str, li
             continue
 
         priority = classify_contact(e)
-
-        # Only include decision makers, HR, engineering, and generic contacts
-        # (exclude priority 4 - others)
-        if priority > 3:
-            continue
-        if is_generic_email(email_val):
+        if priority is None:
             continue
 
         name = f"{(e.get('first_name') or '').strip()} {(e.get('last_name') or '').strip()}".strip() or "N/A"
@@ -1152,59 +1246,175 @@ def extract_ranked_contacts(hunter_response: dict, domain: str) -> tuple[str, li
 
     return organization, ranked
 
-def process_companies(companies: List[Dict], max_companies: int = 50):
-    print(f"\n{'=' * 60}")
-    print(f"PROCESSING UP TO {max_companies} COMPANIES")
-    print(f"{'=' * 60}\n")
+def ensure_crawler_metadata(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS crawler_metadata (
+            source_name TEXT PRIMARY KEY,
+            last_page INTEGER,
+            last_cursor TEXT,
+            total_processed INTEGER,
+            updated_at TEXT
+        )
+    """)
+   
+def process_companies(
+    companies: List[Dict],
+    max_companies: int = MAX_COMPANIES_PER_DAY,
+    state_name: str = "hunter_all",
+):
+    """Process companies and fetch contacts through Hunter.io."""
+
+    hunter_state = get_hunter_pagination_state(
+        DB_PATH,
+        state_name,
+    )
+
+    start_index = hunter_state["companies_completed"]
+    total_contacts_collected = hunter_state["total_contacts"]
+    saved_last_domain = hunter_state["last_domain"]
+
+    # Check if we've already processed all companies
+    if start_index >= len(companies):
+        print(f"✅ All {len(companies)} companies already processed. Nothing to do.")
+        return []
+
+    batch_changed = False
+
+    if start_index > 0:
+        if start_index > len(companies):
+            batch_changed = True
+        else:
+            previous_company = companies[start_index - 1]
+            try:
+                previous_domain = extract_domain(previous_company["url"])
+                if previous_domain != saved_last_domain:
+                    batch_changed = True
+            except:
+                batch_changed = True
+
+    if batch_changed:
+        print("🔄 New or changed company batch detected; resetting cursor.")
+        start_index = 0
+        total_contacts_collected = 0
+
+        with sqlite3.connect(DB_PATH, timeout=30.0) as state_conn:
+            state_conn.execute(
+                "DELETE FROM crawler_metadata WHERE source_name = ?",
+                (state_name,),
+            )
 
     results = []
+    total_api_calls_used = 0
+    companies_processed_this_run = 0
 
-    # FIX: Add timeout and WAL mode
     conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=30000")
-    
+
     try:
-        batch = companies[:max_companies]
-        print(f"  processing {len(batch)} contacts (dedup handled per-contact below)\n")
+        # Calculate how many companies we can process (respecting max_companies)
+        remaining_companies = len(companies) - start_index
+        companies_to_process = min(max_companies, remaining_companies)
         
-        for i, company in enumerate(batch, 1):
+        batch = companies[start_index:start_index + companies_to_process]
+        print(f"  processing {len(batch)} companies (starting at index {start_index + 1})\n")
+
+        for i, company in enumerate(batch, start_index + 1):
+            if total_api_calls_used >= MAX_API_CALLS_PER_RUN:
+                print(
+                    f"⚠️ Hunter API limit reached "
+                    f"({total_api_calls_used}/"
+                    f"{MAX_API_CALLS_PER_RUN})"
+                )
+                break
+            
             try:
-                domain = extract_domain(company['url'])
-                print(f"[{i}/{len(batch)}] 🔍 {company.get('name', domain)[:40]} ({domain})")
-                
-                hunter_data = hunter_domain_search(domain)
-                organization, contacts = extract_ranked_contacts(hunter_data, domain)
-                
+                domain = extract_domain(company["url"])
+                company_name = company.get("name") or domain
+
+                print(
+                    f"[{i}/{len(companies)}] 🔍 "
+                    f"{company_name} ({domain})"
+                )
+
+                hunter_data, api_calls_used = hunter_domain_search(
+                    domain,
+                    max_contacts=MAX_CONTACTS_PER_COMPANY,
+                    max_api_calls=(
+                        MAX_API_CALLS_PER_RUN - total_api_calls_used
+                    ),
+                )
+
+                total_api_calls_used += api_calls_used
+
+                organization, contacts = extract_ranked_contacts(
+                    hunter_data,
+                    domain,
+                )
+
                 conn.execute(
                     "INSERT OR IGNORE INTO companies (domain, organization) VALUES (?, ?)",
-                    (domain, organization if contacts else domain)
+                    (domain, organization if contacts else domain),
                 )
-                
-                # FIX: Commit every 10 companies instead of each
-                if i % 10 == 0:
-                    conn.commit()
-                
+
+                total_contacts_collected += len(contacts)
+                companies_processed_this_run += 1
+
+                save_hunter_pagination_state(
+                    conn,
+                    state_name=state_name,
+                    companies_completed=i,
+                    last_domain=domain,
+                    total_contacts=total_contacts_collected,
+                )
+
                 if contacts:
-                    print(f"    ✓ Found {len(contacts)} contacts")
+                    print(
+                        f"    ✓ Found {len(contacts)} contacts "
+                        f"(used {api_calls_used} API call(s))"
+                    )
+
                     results.append({
-                        "company": company['name'],
+                        "company": company_name,
                         "domain": domain,
                         "organization": organization,
-                        "contacts": contacts
+                        "contacts": contacts,
                     })
                 else:
-                    print(f"    ✗ No contacts found")
-                
+                    print(
+                        f"    ✗ No contacts found "
+                        f"(used {api_calls_used} API call(s))"
+                    )
+
+                if i % 10 == 0:
+                    conn.commit()
+
                 time.sleep(CRAWL_DELAY)
-                
+
             except Exception as e:
                 print(f"    ✗ Error: {e}")
                 conn.rollback()
                 time.sleep(CRAWL_DELAY * 2)
-        
+
         conn.commit()  # Final commit
-        
+
+        final_state = get_hunter_pagination_state(
+            DB_PATH,
+            state_name,
+        )
+
+        print("\n" + "=" * 60)
+        print("HUNTER RUN SUMMARY")
+        print("=" * 60)
+        print(f"Companies processed this run: {companies_processed_this_run}")
+        print(
+            f"Companies completed overall: "
+            f"{final_state['companies_completed']}/{len(companies)}"
+        )
+        print(f"Contacts collected overall: {final_state['total_contacts']}")
+        print(f"API calls used this run: {total_api_calls_used}")
+        print("=" * 60)
+
     finally:
         conn.close()
     
@@ -1254,6 +1464,16 @@ def init_db():
         )
         """)
 
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS crawler_metadata (
+            source_name TEXT PRIMARY KEY,
+            last_page INTEGER,
+            last_cursor TEXT,
+            total_processed INTEGER,
+            updated_at TEXT
+        )
+        """)
+
         # Add missing columns if they don't exist
         columns_to_add = [
             ("companies", "category", "TEXT DEFAULT 'open'"),
@@ -1275,7 +1495,6 @@ def init_db():
 def import_json_contacts(json_path: Path):
     data = json.loads(json_path.read_text(encoding="utf-8"))
     
-    # FIX: Add timeout and WAL mode
     conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=30000")
@@ -1436,6 +1655,100 @@ def process_companies_apollo(companies: List[Dict], max_companies: int = None):
 
     return results
 
+def get_hunter_pagination_state(
+    db_path: Path,
+    state_name: str = "hunter_all",
+) -> dict:
+    with sqlite3.connect(db_path, timeout=30.0) as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        ensure_crawler_metadata(conn)
+
+        row = conn.execute(
+            """
+            SELECT last_page, last_cursor, total_processed, updated_at
+            FROM crawler_metadata
+            WHERE source_name = ?
+            """,
+            (state_name,),
+        ).fetchone()
+
+    if not row:
+        return {
+            "companies_completed": 0,
+            "last_domain": None,
+            "total_contacts": 0,
+            "updated_at": None,
+        }
+
+    return {
+        "companies_completed": row[0] or 0,
+        "last_domain": row[1],
+        "total_contacts": row[2] or 0,
+        "updated_at": row[3],
+    }
+
+
+def save_hunter_pagination_state(
+    conn,
+    state_name: str,
+    companies_completed: int,
+    last_domain: str,
+    total_contacts: int,
+):
+    ensure_crawler_metadata(conn)
+
+    conn.execute(
+        """
+        INSERT OR REPLACE INTO crawler_metadata
+        (source_name, last_page, last_cursor, total_processed, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            state_name,
+            companies_completed,
+            last_domain,
+            total_contacts,
+            datetime.now(timezone.utc).isoformat(),
+        ),
+    )
+
+
+def reset_hunter_pagination(db_path: Path):
+    with sqlite3.connect(db_path, timeout=30.0) as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        ensure_crawler_metadata(conn)
+        conn.execute(
+            "DELETE FROM crawler_metadata WHERE source_name LIKE 'hunter_%'"
+        )
+
+    print("✓ Hunter pagination reset")
+
+
+def show_hunter_status(db_path: Path):
+    modes = (
+        ("All sources", "hunter_all"),
+        ("Local file", "hunter_local"),
+        ("YAML file", "hunter_yaml"),
+    )
+
+    print("Hunter Status:")
+
+    for label, state_name in modes:
+        state = get_hunter_pagination_state(db_path, state_name)
+
+        print(f"\n  {label}:")
+        print(
+            f"    Companies completed: "
+            f"{state['companies_completed']}"
+        )
+        print(
+            f"    Next company position: "
+            f"{state['companies_completed'] + 1}"
+        )
+        print(f"    Last domain: {state['last_domain'] or 'N/A'}")
+        print(f"    Contacts collected: {state['total_contacts']}")
+        print(f"    Last updated: {state['updated_at'] or 'N/A'}")
+
 def discover_companies_from_local_file_only() -> List[Dict]:
     """Discover companies ONLY from target_companies.txt"""
     print("\n" + "=" * 60)
@@ -1444,25 +1757,33 @@ def discover_companies_from_local_file_only() -> List[Dict]:
 
     sources = load_free_database_sources()
 
-    if 'local_txt' not in sources:  # ← Changed from 'local_domains'
+    if 'local_txt' not in sources:
         print("❌ 'local_txt' source not found in configuration")
         return []
 
-    source_config = sources['local_txt']  # ← Changed from 'local_domains'
+    source_config = sources['local_txt']
     print(f"📄 Using source: {source_config.get('name', 'local_txt')}")
 
-    companies = fetch_from_source('local_txt', source_config)  # ← Changed from 'local_domains'
+    companies = fetch_from_source('local_txt', source_config)
 
     unique_companies = []
     seen_domains = set()
-    for company in companies:
-        try:
-            domain = extract_domain(company['url'])
-            if domain not in seen_domains:
-                seen_domains.add(domain)
-                unique_companies.append(company)
-        except:
+    for company in companies or []:
+        url = company.get('url', '')
+        if not url:
             continue
+
+        try:
+            domain = extract_domain(url)
+        except Exception:
+            continue
+
+        if domain in seen_domains:
+            continue
+
+        seen_domains.add(domain)
+        company['source_name'] = 'local_txt'
+        unique_companies.append(company)
 
     print(f"\n{'=' * 60}")
     print(f"📊 LOCAL FILE COMPANIES FOUND: {len(unique_companies)}")
@@ -1530,7 +1851,7 @@ def main():
         json_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
         latest_file = json_files[0]
         print(f"📥 Importing contacts from: {latest_file.name}")
-        import_json_contacts(latest_file)  # <-- Call existing function with Path
+        import_json_contacts(latest_file)
     else:
         print("No contacts*.json files found.")
 
@@ -1540,10 +1861,8 @@ def main():
         print("No companies found. Exiting.")
         return
 
-    # 4) Process companies with Hunter.io (limit to avoid chaos)
-    max_to_process = min(50, len(companies))
-    process_companies(companies, max_companies=max_to_process)
-
+    # 4) Process companies with Hunter.io using env var for limit
+    max_to_process = min(MAX_COMPANIES_PER_DAY, len(companies))
     print("\n" + "=" * 60)
     print("CRAWLER COMPLETE")
     print("=" * 60)
@@ -1554,34 +1873,29 @@ if __name__ == "__main__":
 
     # Check for command-line arguments
     if len(sys.argv) > 1 and sys.argv[1] == "--local-only":
-        # Run local file only mode
-        print("\n" + "=" * 60)
-        print("LOCAL FILE ONLY MODE")
-        print("=" * 60)
-
-        # 1) Initialize database schema
         init_db()
 
-        # 2) Discover companies from local file only
         companies = discover_companies_from_local_file_only()
 
         if not companies:
             print("No companies found in local file. Exiting.")
             sys.exit(0)
 
-        # 3) Process companies with Hunter.io
-        max_to_process = min(50, len(companies))
-        process_companies(companies, max_companies=max_to_process)
+        max_to_process = min(
+            MAX_COMPANIES_PER_DAY,
+            len(companies),
+        )
 
-        print("\n" + "=" * 60)
-        print("LOCAL FILE CRAWLER COMPLETE")
+        process_companies(
+            companies,
+            max_companies=max_to_process,
+            state_name="hunter_all",
+        )
+
+        print("\nLOCAL FILE CRAWLER COMPLETE")
         print("=" * 60)
 
     elif len(sys.argv) > 1 and sys.argv[1] == "--yaml-only":
-        print("\n" + "=" * 60)
-        print("YAML FILE ONLY MODE")
-        print("=" * 60)
-
         init_db()
 
         companies = discover_companies_from_yaml_only()
@@ -1590,12 +1904,18 @@ if __name__ == "__main__":
             print("No companies found in companies.yaml. Exiting.")
             sys.exit(0)
 
-        max_to_process = min(50, len(companies))
-        process_companies(companies, max_companies=max_to_process)
+        max_to_process = min(
+            MAX_COMPANIES_PER_DAY,
+            len(companies),
+        )
 
-        print("\n" + "=" * 60)
-        print("YAML FILE CRAWLER COMPLETE")
-        print("=" * 60)
+        process_companies(
+            companies,
+            max_companies=max_to_process,
+            state_name="hunter_yaml",
+        )
+
+        print("\nYAML FILE CRAWLER COMPLETE")
 
     elif len(sys.argv) > 1 and sys.argv[1] == "--apollo-only":
         print("\n" + "=" * 60)
@@ -1606,7 +1926,7 @@ if __name__ == "__main__":
 
         sources = load_free_database_sources()
         apollo_config = sources['apollo_people']
-        apollo_config['enabled'] = True  # ← add this
+        apollo_config['enabled'] = True
         companies = fetch_from_source('apollo_people', apollo_config)
 
         if not companies:
@@ -1636,8 +1956,19 @@ if __name__ == "__main__":
         show_apollo_status(DB_PATH)
         sys.exit(0)
 
+    elif len(sys.argv) > 1 and sys.argv[1] == "--hunter-reset":
+        print("\nRESETTING HUNTER PAGINATION STATE")
+        init_db()
+        reset_hunter_pagination(DB_PATH)
+        show_hunter_status(DB_PATH)
+        sys.exit(0)
+
+    elif len(sys.argv) > 1 and sys.argv[1] == "--hunter-status":
+        print("\nHUNTER PAGINATION STATUS")
+        init_db()
+        show_hunter_status(DB_PATH)
+        sys.exit(0)
+
     else:
         # Run normal mode (all sources)
         main()
-
-        
