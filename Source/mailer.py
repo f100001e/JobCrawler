@@ -238,47 +238,40 @@ def run_mailer():
             print(f"   Mode: {'IP Whitelist' if WHITELIST_MODE else 'SMTP Auth'}")
             print(f"   HELO Domain: {HELO_DOMAIN}")
 
-            ctx = ssl.create_default_context()
+        ctx = ssl.create_default_context()
 
-            # CHECK IF IN GOOGLE ADMIN MODE
-            import sys
-            if '--google-admin' in sys.argv:
-                # Force IPv4 connection
-                import socket
-                print("⚡ Google Admin mode: Forcing IPv4...")
-                addrinfos = socket.getaddrinfo(
-                    SMTP_HOST, SMTP_PORT,
-                    socket.AF_INET,  # IPv4 only
-                    socket.SOCK_STREAM,
-                    socket.IPPROTO_TCP
-                )
+        # Select encryption based on port
+        if SMTP_PORT == 465:
+            # Implicit TLS — Titan
+            server = smtplib.SMTP_SSL(
+                SMTP_HOST,
+                SMTP_PORT,
+                timeout=30,
+                context=ctx
+            )
+            server.ehlo(HELO_DOMAIN)
 
-                if not addrinfos:
-                    raise socket.gaierror(f"No IPv4 addresses found for {SMTP_HOST}")
+        else:
+            # STARTTLS — Google relay on 587
+            server = smtplib.SMTP(
+                SMTP_HOST,
+                SMTP_PORT,
+                timeout=30
+            )
+            server.ehlo(HELO_DOMAIN)
+            server.starttls(context=ctx)
+            server.ehlo(HELO_DOMAIN)
 
-                ip, port = addrinfos[0][4][0], addrinfos[0][4][1]
-                print(f"   Connecting via IPv4: {ip}:{port}")
+        # Select authentication mode
+        if WHITELIST_MODE:
+            print("✅ Using IP whitelist — SMTP login skipped")
+        else:
+            if not SMTP_USER or not SMTP_PASS:
+                raise RuntimeError("SMTP username/password required in authentication mode")
 
-                # Create custom SSL context for IP connection
-                ipv4_ctx = ssl.create_default_context()
-                ipv4_ctx.check_hostname = False  # Allow IP connection
-                ipv4_ctx.verify_mode = ssl.CERT_NONE  # Skip cert verification
-
-                server = smtplib.SMTP(ip, port, timeout=30)
-
-                # Always identify with HELO domain
-                server.ehlo(HELO_DOMAIN)
-                server.starttls(context=ipv4_ctx)  # Use custom context
-                server.ehlo(HELO_DOMAIN)  # Again after STARTTLS
-
-            else:
-                # Normal connection
-                server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
-
-                # Always identify with HELO domain
-                server.ehlo(HELO_DOMAIN)
-                server.starttls(context=ctx)
-                server.ehlo(HELO_DOMAIN)  # Again after STARTTLS
+            print(f"🔐 Authenticating as {SMTP_USER}...")
+            server.login(SMTP_USER, SMTP_PASS)
+            print("✅ Authentication successful")
 
             # Only authenticate if NOT in whitelist mode
             if not WHITELIST_MODE:
@@ -402,9 +395,10 @@ def run_google_admin_ipv4():
 
 
 def send_test_email(test_email):
-    """Send a single test email using forced IPv4 to check deliverability"""
+    """Send a single test email using the configured SMTP provider."""
+
     print(f"\n{'=' * 60}")
-    print(f"📧 TEST MODE: Sending single test email")
+    print("📧 TEST MODE: Sending single test email")
     print(f"{'=' * 60}")
     print(f"To: {test_email}")
     print(f"From: {FROM_EMAIL}")
@@ -412,63 +406,84 @@ def send_test_email(test_email):
     print(f"{'=' * 60}\n")
     print("ENV file:", BASE_DIR / ".env")
     print("SMTP host:", SMTP_HOST)
+    print("SMTP port:", SMTP_PORT)
     print("Whitelist mode:", WHITELIST_MODE)
-    print("SMTP user:", SMTP_USER)
+    print("HELO domain:", HELO_DOMAIN)
 
     if not RESUME_PATH.exists():
         raise FileNotFoundError(f"Resume not found: {RESUME_PATH}")
 
-    # Determine connection mode from the command-line flag
+    if not SMTP_HOST:
+        raise RuntimeError("Missing SMTP_HOST env var")
+
+    tls_context = ssl.create_default_context()
+
     google_admin_mode = "--google-admin" in sys.argv
 
     if google_admin_mode:
-        print("🔌 Connecting through Google Admin relay with forced IPv4...")
-    else:
-        print("🔌 Connecting through normal authenticated SMTP...")
+        if SMTP_PORT != 587:
+            raise RuntimeError("Forced IPv4 Google relay requires port 587")
 
-    if google_admin_mode:
-        # Use Google Admin IPv4 connection
-        host = SMTP_HOST
-        port = SMTP_PORT
-
-        # Resolve to IPv4 only
         addrinfos = socket.getaddrinfo(
-            host, port,
-            socket.AF_INET,  # IPv4 only
+            SMTP_HOST,
+            SMTP_PORT,
+            socket.AF_INET,
             socket.SOCK_STREAM,
             socket.IPPROTO_TCP
         )
 
         if not addrinfos:
-            raise socket.gaierror(f"No IPv4 addresses found for {host}")
+            raise socket.gaierror(
+                f"No IPv4 addresses found for {SMTP_HOST}"
+            )
 
-        ip, port = addrinfos[0][4][0], addrinfos[0][4][1]
-        print(f"   Resolved to IPv4: {ip}:{port}")
+        ipv4_host, ipv4_port = addrinfos[0][4]
+        print(f"🔌 Connecting via IPv4: {ipv4_host}:{ipv4_port}")
 
-        # Create custom SSL context for IP connection
-        ipv4_ctx = ssl.create_default_context()
-        ipv4_ctx.check_hostname = False
-        ipv4_ctx.verify_mode = ssl.CERT_NONE
+        server = smtplib.SMTP(ipv4_host, ipv4_port, timeout=30)
 
-        server = smtplib.SMTP(ip, port, timeout=30)
+        # Use the real hostname for secure certificate verification
+        server._host = SMTP_HOST
+
         server.ehlo(HELO_DOMAIN)
-        server.starttls(context=ipv4_ctx)
+        server.starttls(context=tls_context)
         server.ehlo(HELO_DOMAIN)
+
+    elif SMTP_PORT == 465:
+        print("🔌 Connecting with implicit TLS...")
+        server = smtplib.SMTP_SSL(
+            SMTP_HOST,
+            SMTP_PORT,
+            timeout=30,
+            context=tls_context
+        )
+        server.ehlo(HELO_DOMAIN)
+
     else:
-        # Normal connection
-        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
+        print("🔌 Connecting with STARTTLS...")
+        server = smtplib.SMTP(
+            SMTP_HOST,
+            SMTP_PORT,
+            timeout=30
+        )
         server.ehlo(HELO_DOMAIN)
-        server.starttls(context=ssl.create_default_context())
+        server.starttls(context=tls_context)
         server.ehlo(HELO_DOMAIN)
 
-    # Authenticate if needed
-    if not WHITELIST_MODE and SMTP_USER and SMTP_PASS:
+    if WHITELIST_MODE:
+        print("✅ Using IP whitelist — SMTP login skipped")
+    else:
+        if not SMTP_USER or not SMTP_PASS:
+            server.quit()
+            raise RuntimeError(
+                "SMTP username/password required in authentication mode"
+            )
+
         print(f"🔐 Authenticating as {SMTP_USER}...")
         server.login(SMTP_USER, SMTP_PASS)
+        print("✅ Authentication successful")
 
     # Build test message
-    contact_id = None
-    to_email = test_email
     name = "Test User"
     domain = "example.com"
     organization = "Test Organization"
@@ -487,7 +502,7 @@ def send_test_email(test_email):
         server.send_message(msg)
         print(f"\n✅ TEST EMAIL SENT SUCCESSFULLY!")
         print(f"   To: {test_email}")
-        print(f"   Mode: {'IPv4 Forced' if google_admin_mode else 'Normal'}")
+        print(f"   Mode: {'Whitelist' if WHITELIST_MODE else 'Authenticated'}")
         print(f"\n📌 IMPORTANT:")
         print(f"   1. Check your spam folder")
         print(f"   2. If found in spam, mark as 'Not Spam'")
