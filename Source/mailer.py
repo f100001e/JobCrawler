@@ -119,7 +119,7 @@ jennifer@presspassla.com
 
 I'm reaching out regarding {cat} roles at {domain}.
 
-Resume attached. If there's a better contact or process, I'd appreciate a pointer.
+Looking to speak to whomever handles the hiring, otherwise disregard.
 
 Best,
 FLE
@@ -515,17 +515,273 @@ def send_test_email(test_email):
         server.quit()
         print("🔌 SMTP connection closed")
 
+PERSONAL_EMAIL_DOMAINS = {
+    "gmail.com",
+    "yahoo.com",
+    "hotmail.com",
+    "outlook.com",
+    "icloud.com",
+    "aol.com",
+    "proton.me",
+    "protonmail.com",
+}
+
+
+def csv_value(row, *names):
+    """Return first non-empty matching CSV column."""
+    for name in names:
+        value = row.get(name)
+        if value and value.strip():
+            return value.strip()
+    return ""
+
+def connect_csv_smtp(google_admin=False):
+    ctx = ssl.create_default_context()
+
+    if google_admin:
+        host = "smtp-relay.gmail.com"
+        port = 587
+
+        addrinfos = socket.getaddrinfo(
+            host,
+            port,
+            socket.AF_INET,
+            socket.SOCK_STREAM,
+            socket.IPPROTO_TCP
+        )
+
+        if not addrinfos:
+            raise socket.gaierror(f"No IPv4 addresses found for {host}")
+
+        ip, port = addrinfos[0][4]
+
+        print(f"🔌 Google Admin IPv4: {ip}:{port}")
+
+        server = smtplib.SMTP(ip, port, timeout=30)
+
+        # Certificate still validates against Google's hostname
+        server._host = host
+
+        server.ehlo(HELO_DOMAIN)
+        server.starttls(context=ctx)
+        server.ehlo(HELO_DOMAIN)
+
+    elif SMTP_PORT == 465:
+
+        print(f"🔌 Normal SMTP SSL: {SMTP_HOST}:{SMTP_PORT}")
+
+        server = smtplib.SMTP_SSL(
+            SMTP_HOST,
+            SMTP_PORT,
+            timeout=30,
+            context=ctx
+        )
+
+        server.ehlo(HELO_DOMAIN)
+
+    else:
+
+        print(f"🔌 Normal SMTP STARTTLS: {SMTP_HOST}:{SMTP_PORT}")
+
+        server = smtplib.SMTP(
+            SMTP_HOST,
+            SMTP_PORT,
+            timeout=30
+        )
+
+        server.ehlo(HELO_DOMAIN)
+        server.starttls(context=ctx)
+        server.ehlo(HELO_DOMAIN)
+
+    if WHITELIST_MODE:
+        print("✅ Using IP whitelist")
+    else:
+        if not SMTP_USER or not SMTP_PASS:
+            server.quit()
+            raise RuntimeError("SMTP credentials required")
+
+        server.login(SMTP_USER, SMTP_PASS)
+        print("✅ SMTP authentication successful")
+
+    return server
+
+def load_csv_recipients(csv_path):
+    """
+    Load recipients directly from CSV.
+    Nothing is written to the database.
+    """
+
+    recipients = []
+    seen = set()
+
+    with open(csv_path, newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+
+        for row in reader:
+            # Handles our own CSVs and Google Contacts-style exports
+            email = csv_value(
+                row,
+                "email",
+                "Email",
+                "E-mail 1 - Value",
+                "E-mail Address",
+            )
+
+            if not email or "@" not in email:
+                continue
+
+            email = email.strip()
+            email_key = email.lower()
+
+            # Deduplicate within this CSV
+            if email_key in seen:
+                continue
+
+            seen.add(email_key)
+
+            name = csv_value(
+                row,
+                "name",
+                "Name",
+                "Given Name",
+            )
+
+            company = csv_value(
+                row,
+                "company",
+                "Company",
+                "Organization",
+                "Organization 1 - Name",
+            )
+
+            recipients.append((email, name, company))
+
+    return recipients
+
+def run_csv_mailer(csv_path, google_admin=False):
+    csv_path = Path(csv_path).resolve()
+
+    if not csv_path.exists():
+        print(f"❌ CSV not found: {csv_path}")
+        return
+
+    recipients = load_csv_recipients(csv_path)
+
+    if not recipients:
+        print("❌ No valid email addresses found.")
+        return
+
+    recipients = recipients[:MAX_EMAILS_PER_RUN]
+
+    print("\n" + "=" * 60)
+    print("CSV MAILER")
+    print("=" * 60)
+    print(f"File: {csv_path.name}")
+    print(f"Recipients: {len(recipients)}")
+    print(f"Mode: {'Google Admin IPv4' if google_admin else 'Normal SMTP'}")
+    print("=" * 60)
+
+    if DRY_RUN:
+        server = None
+    else:
+        server = connect_csv_smtp(google_admin)
+
+    sent = 0
+    failed = 0
+
+    try:
+        for i, (email, name, company) in enumerate(recipients, 1):
+
+            domain = email.rsplit("@", 1)[-1].lower()
+
+            # Never call someone's company "gmail.com"
+            if company:
+                target = company
+            elif domain not in PERSONAL_EMAIL_DOMAINS:
+                target = domain
+            else:
+                target = "your organization"
+
+            if CAMPAIGN == "ppla":
+                subject = "PPLA Social + PR — Introduction"
+            else:
+                subject = f"Open roles at {target}"
+
+            body = default_body(
+                target,
+                "Open",
+                name=name,
+                email_type="personal"
+            )
+
+            try:
+                msg = build_message(
+                    email,
+                    subject,
+                    body,
+                    cc=(i == 1)
+                )
+
+                if DRY_RUN:
+                    print(f"[DRY RUN {i}/{len(recipients)}] {email}")
+                else:
+                    server.send_message(msg)
+                    print(f"✅ Sent [{i}/{len(recipients)}] -> {email}")
+
+                sent += 1
+
+            except Exception as e:
+                failed += 1
+                print(f"❌ Failed -> {email}: {e}")
+
+            if i < len(recipients):
+                time.sleep(SEND_DELAY_SECONDS)
+
+    finally:
+        if server:
+            server.quit()
+            print("🔌 SMTP connection closed")
+
+    print("\n" + "=" * 40)
+    print("CSV MAILER SUMMARY")
+    print("=" * 40)
+    print(f"✅ Sent: {sent}")
+    print(f"❌ Failed: {failed}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Job Application Mailer')
-    parser.add_argument('--google-admin', action='store_true', help='Use Google Admin IPv4 mode')
-    parser.add_argument('--test-send', type=str, help='Send a single test email to the specified address')
+    parser = argparse.ArgumentParser(description="Job Application Mailer")
+
+    parser.add_argument(
+        "--google-admin",
+        action="store_true",
+        help="Use Google Admin IPv4 mode"
+    )
+
+    parser.add_argument(
+        "--test-send",
+        type=str,
+        help="Send a single test email"
+    )
+
+    parser.add_argument(
+        "--csv",
+        type=str,
+        help="Send directly to recipients from CSV"
+    )
 
     args = parser.parse_args()
 
     if args.test_send:
         send_test_email(args.test_send)
+
+    elif args.csv:
+        run_csv_mailer(
+            args.csv,
+            google_admin=args.google_admin
+        )
+
     elif args.google_admin:
-        run_google_admin_ipv4() 
+        run_google_admin_ipv4()
+
     else:
         run_mailer()

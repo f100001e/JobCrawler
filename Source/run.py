@@ -40,9 +40,11 @@ def show_menu():
     print("15. Show Hunter pagination status")
     print("16. Show crawler help")
     print("17. 🔧 Fix pending status (reset Apollo contacts to pending)")
-    print("18. Exit")
+    print("18. 📄 Send CSV List - Normal SMTP")
+    print("19. 📄 Send CSV List - Google Admin IPv4")
+    print("20. Exit")
 
-    choice = input("\nEnter choice (1-18): ").strip()
+    choice = input("\nEnter choice (1-20): ").strip()
     return choice
 
 
@@ -128,7 +130,7 @@ def test_email_normal_smtp():
     print("📧 TEST EMAIL - NORMAL SMTP (NO IPv4)")
     print("=" * 60)
     print("   Mode: Normal SMTP (not forced IPv4)")
-    print("   Auth: SMTP with Google App Password")
+    print("   Auth: Determined by WHITELIST_MODE in .env")
     print("=" * 60)
 
     mailer_file = BASE_DIR / "mailer.py"
@@ -145,7 +147,12 @@ def test_email_normal_smtp():
     print("   Mode: Normal SMTP (no IPv4 forcing)")
 
     # Don't use --google-admin flag for normal SMTP
-    cmd = [sys.executable, "mailer.py", "--test-send", email]
+    cmd = [
+    sys.executable,
+    str(mailer_file),
+    "--test-send",
+    email
+]
 
     try:
         subprocess.run(cmd, check=True)
@@ -184,7 +191,13 @@ def test_email_ipv4():
     print("   This helps ensure emails don't go to spam")
     print("   Check your spam folder and mark as 'Not Spam' if needed")
 
-    cmd = [sys.executable, "mailer.py", "--test-send", email, "--google-admin"]
+    cmd = [
+    sys.executable,
+    str(mailer_file),
+    "--test-send",
+    email,
+    "--google-admin"
+]
 
     try:
         subprocess.run(cmd, check=True)
@@ -360,134 +373,20 @@ def import_json_only():
         print("❌ Invalid choice, using latest file.")
         files_to_import = [json_files[0]]
 
-    total_imported = 0
-    total_skipped = 0
-    total_files = 0
-
     for json_file in files_to_import:
         print(f"\n{'=' * 60}")
         print(f"📖 Processing: {json_file.name}")
         print(f"{'=' * 60}")
-
-        try:
-            with open(json_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-
-            if not data:
-                print("❌ JSON file is empty!")
-                continue
-
-            print(f"📊 Found {len(data)} companies in JSON")
-
-            companies_with_contacts = []
-            for company in data:
-                contacts = company.get('contacts', [])
-                if contacts and len(contacts) > 0:
-                    companies_with_contacts.append(company)
-
-            print(f"✅ {len(companies_with_contacts)} companies have contacts")
-
-            if not companies_with_contacts:
-                print("❌ No companies with contacts found in JSON!")
-                continue
-
-            conn = sqlite3.connect(DB_PATH)
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("PRAGMA busy_timeout=5000")
-            cursor = conn.cursor()
-
-            imported = 0
-            skipped = 0
-
-            for company_data in companies_with_contacts:
-                domain = company_data.get('domain', '')
-                if not domain:
-                    continue
-
-                cursor.execute("""
-                    INSERT OR IGNORE INTO companies (domain, organization, source_name)
-                    VALUES (?, ?, ?)
-                """, (domain, company_data.get('organization', company_data.get('company', domain)), json_file.name))
-
-                result = cursor.execute("SELECT id FROM companies WHERE domain = ?", (domain,)).fetchone()
-                if result is None:
-                    continue
-                company_id = result[0]
-
-                contacts = company_data.get('contacts', [])
-                for contact in contacts:
-                    email = contact.get('email', '').strip()
-                    if not email:
-                        continue
-
-                    cursor.execute("""
-                        SELECT id FROM contacts 
-                        WHERE company_id = ? AND email = ?
-                    """, (company_id, email))
-
-                    if cursor.fetchone():
-                        skipped += 1
-                        continue
-
-                    cursor.execute("""
-                        INSERT INTO contacts
-                        (company_id, email, name, confidence, type, contacted)
-                        VALUES (?, ?, ?, ?, ?, 0)
-                    """, (
-                        company_id,
-                        email,
-                        contact.get('name', ''),
-                        contact.get('confidence', 70),
-                        contact.get('type', 'personal'),
-                    ))
-
-                    imported += 1
-
-            conn.commit()
-            conn.close()
-
-            print(f"   📥 Imported: {imported} new contacts")
-            print(f"   ⏭️  Skipped: {skipped} duplicates")
-            print(f"   ✅ Done with {json_file.name}")
-
-            total_imported += imported
-            total_skipped += skipped
-            total_files += 1
-
-        except Exception as e:
-            print(f"❌ Error importing {json_file.name}: {e}")
-            import traceback
-            traceback.print_exc()
+        
+        # ✅ Use crawler's import function (handles Apollo metadata correctly)
+        import_json_contacts(json_file)
 
     print(f"\n{'=' * 60}")
     print("📊 IMPORT SUMMARY")
     print(f"{'=' * 60}")
-    print(f"📁 Files processed: {total_files}")
-    print(f"📥 New contacts imported: {total_imported}")
-    print(f"⏭️  Duplicates skipped: {total_skipped}")
+    print(f"📁 Files processed: {len(files_to_import)}")
     print(f"💾 Database: {DB_PATH.name}")
     print(f"{'=' * 60}")
-
-    if total_imported > 0:
-        csv_file = BASE_DIR / f"imported_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
-        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['email', 'name', 'domain', 'organization', 'type', 'imported_at'])
-            
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT c.email, c.name, co.domain, co.organization, c.type, c.contacted_at
-                FROM contacts c
-                JOIN companies co ON c.company_id = co.id
-                ORDER BY co.domain, c.email
-                LIMIT 1000
-            """)
-            for row in cursor.fetchall():
-                writer.writerow(row)
-            conn.close()
-        
-        print(f"📄 CSV saved: {csv_file.name} (first 1000 contacts)")
 
     check_database()
 
@@ -725,6 +624,52 @@ def show_help():
     except FileNotFoundError:
         print("❌ crawler.py not found!")
 
+def run_csv_mailer(google_admin=False):
+    print("\n" + "=" * 60)
+    print("CSV MAILER")
+    print("=" * 60)
+
+    csv_files = sorted(
+        BASE_DIR.glob("List*.csv"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True
+    )
+
+    if not csv_files:
+        print("❌ No List*.csv files found.")
+        return
+
+    print("\nAvailable mailing lists:")
+    for i, csv_file in enumerate(csv_files, 1):
+        print(f"   {i}. {csv_file.name}")
+
+    choice = input("\nSelect list: ").strip()
+
+    if not choice.isdigit():
+        print("❌ Invalid selection.")
+        return
+
+    idx = int(choice) - 1
+
+    if not 0 <= idx < len(csv_files):
+        print("❌ Invalid selection.")
+        return
+
+    selected = csv_files[idx]
+
+    print(f"\n📄 Selected: {selected.name}")
+
+    cmd = [
+        sys.executable,
+        str(BASE_DIR / "mailer.py"),
+        "--csv",
+        str(selected),
+    ]
+
+    if google_admin:
+        cmd.append("--google-admin")
+
+    subprocess.run(cmd, check=True)
 
 def main():
     while True:
@@ -765,6 +710,12 @@ def main():
         elif choice == "17":
             fix_pending_status()  # <-- NEW: Fix pending status
         elif choice == "18":
+            run_csv_mailer(google_admin=False)
+
+        elif choice == "19":
+            run_csv_mailer(google_admin=True)
+
+        elif choice == "20":
             print("\nExiting. Goodbye!")
             break
         else:
