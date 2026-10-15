@@ -23,6 +23,7 @@ contacts_*.json
 *.txt
 hunter_contacts_*.json
 *.csv
+apollo_*.json
 
 # OS files
 .DS_Store

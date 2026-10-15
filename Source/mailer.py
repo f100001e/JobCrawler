@@ -51,7 +51,7 @@ def build_message(to_email: str, subject: str, body: str, cc: bool = False) -> E
     if cc and CC_EMAIL:
         msg["Cc"] = CC_EMAIL
     
-    if RESUME_PATH and not RESUME_PATH.is_dir() and RESUME_PATH.exists():
+    if CAMPAIGN == "job" and RESUME_PATH.is_file():
         data = RESUME_PATH.read_bytes()
         msg.add_attachment(
             data,
@@ -100,19 +100,19 @@ def build_body(first: str, domain: str, cat: str = "open") -> str:
     if CAMPAIGN == "ppla":
         return f"""{greeting}
 
-While I wasn't referred to you directly, I've followed {domain} for some time and have been impressed by what you're building.
+Press Pass LA is celebrating 15 years of entertainment coverage, and we're marking the milestone with a special Hollywood event on November 10, from 6–9 PM, at White Rabbit Sky Lounge.
 
-I wanted to reach out to introduce PPLA Social + PR and learn more about your current branding, media, and growth goals.
+The evening will bring together entertainment industry professionals, VIPs, and talent, alongside the unveiling of our Winter 2027 print issue cover and a preview of our new content studio.
 
-We recently covered the American Music Awards in Las Vegas and maintain a strong presence at CES each year. Our team works across technology, entertainment, and public affairs, helping clients secure meaningful coverage in top-tier publications including Forbes, Rolling Stone, The New York Times, NYSE TV, and other leading outlets.
+We're currently exploring brand partnerships and sponsorship opportunities for the celebration and welcome introductions to businesses interested in participating. Referral compensation may be available for successful sponsorship introductions.
 
-I'd be happy to schedule a brief call to learn more about your objectives and explore whether there may be an opportunity to work together.
+For partnership details or to connect us with a potential sponsor, please contact Jennifer@presspassla.com.
 
---
-Jennifer Buonantony, CEO
-PressPassLA.com (News) | PPLASocial.com (Agency)
-c. 323.496.1976
-jennifer@presspassla.com
+Best,
+Jennifer Buonantony
+Founder & CEO, Press Pass LA
+presspassla.com
+
 """
     else:
         return f"""{greeting}
@@ -210,13 +210,13 @@ def get_one_contact_per_domain(conn) -> list:
             selected.append(row)
     return selected
 
-def run_mailer():
+def run_mailer(force_ipv4=False):
     # Check database first
     if not check_and_import_json_if_empty():
         print("\nCannot proceed. Please run crawler.py first to populate database.")
         return
 
-    if not RESUME_PATH.exists():
+    if CAMPAIGN == "job" and not RESUME_PATH.is_file():
         raise FileNotFoundError(f"Resume not found: {RESUME_PATH}")
 
     with sqlite3.connect(DB_PATH) as conn:
@@ -226,8 +226,18 @@ def run_mailer():
             return
 
         if DRY_RUN:
-            server = None
-            print(f"[DRY RUN] Would send up to {len(rows)} emails. No SMTP connection will be made.")
+            print(f"[DRY RUN] Previewing {len(rows)} emails.")
+
+            for i, row in enumerate(rows, 1):
+                contact_id, to_email, name, domain, organization = row
+
+                print(
+                    f"[DRY RUN {i}/{len(rows)}] "
+                    f"Would send -> {to_email} ({domain})"
+                )
+
+            print("No emails sent. Database unchanged.")
+            return
         else:
             if not SMTP_HOST:
                 raise RuntimeError("Missing SMTP_HOST env var")
@@ -252,12 +262,31 @@ def run_mailer():
             server.ehlo(HELO_DOMAIN)
 
         else:
-            # STARTTLS — Google relay on 587
-            server = smtplib.SMTP(
-                SMTP_HOST,
-                SMTP_PORT,
-                timeout=30
-            )
+            # STARTTLS — Google relay on port 587
+            if force_ipv4:
+                if SMTP_PORT != 587:
+                    raise ValueError("Forced IPv4 mode requires port 587")
+
+                addrinfos = socket.getaddrinfo(
+                    SMTP_HOST,
+                    SMTP_PORT,
+                    socket.AF_INET,
+                    socket.SOCK_STREAM,
+                    socket.IPPROTO_TCP
+                )
+
+                ip, port = addrinfos[0][4]
+                print(f"🔌 Connecting via IPv4: {ip}:{port}")
+
+                server = smtplib.SMTP(ip, port, timeout=30)
+                server._host = SMTP_HOST
+            else:
+                server = smtplib.SMTP(
+                    SMTP_HOST,
+                    SMTP_PORT,
+                    timeout=30
+                )
+
             server.ehlo(HELO_DOMAIN)
             server.starttls(context=ctx)
             server.ehlo(HELO_DOMAIN)
@@ -267,22 +296,13 @@ def run_mailer():
             print("✅ Using IP whitelist — SMTP login skipped")
         else:
             if not SMTP_USER or not SMTP_PASS:
-                raise RuntimeError("SMTP username/password required in authentication mode")
+                raise RuntimeError(
+                    "SMTP username/password required in authentication mode"
+                )
 
             print(f"🔐 Authenticating as {SMTP_USER}...")
             server.login(SMTP_USER, SMTP_PASS)
             print("✅ Authentication successful")
-
-            # Only authenticate if NOT in whitelist mode
-            if not WHITELIST_MODE:
-                if SMTP_USER and SMTP_PASS:
-                    print(f"🔐 Authenticating as {SMTP_USER}...")
-                    server.login(SMTP_USER, SMTP_PASS)
-                    print("✅ Authentication successful")
-                else:
-                    print("⚠ No credentials provided for auth mode. Assuming IP whitelist.")
-            else:
-                print("✅ Using IP whitelist (no authentication)")
 
         try:
             sent = 0
@@ -330,7 +350,10 @@ def run_mailer():
 
         finally:
             if server is not None:
-                server.quit()
+                try:
+                    server.quit()
+                except (smtplib.SMTPServerDisconnected, OSError):
+                    server.close()
                 print("🔌 SMTP connection closed")
 
         print(f"\n{'=' * 40}")
@@ -355,43 +378,11 @@ def run_mailer():
 # ===== GOOGLE ADMIN IPv4 OPTION =====
 
 def run_google_admin_ipv4():
-    """
-    Run mailer with Google Admin IPv4-only connection
-    This is a specialized mode that forces IPv4 for IP whitelist auth
-    """
     print("\n" + "=" * 60)
     print("GOOGLE ADMIN IPv4-ONLY MAILER")
     print("=" * 60)
 
-    # Force IPv4 resolution
-    import socket
-
-    host = "smtp-relay.gmail.com"
-    port = 587
-
-    print("🔌 Forcing IPv4 connection for Google Admin...")
-
-    # Resolve hostname to IPv4 only
-    addrinfos = socket.getaddrinfo(
-        host, port,
-        socket.AF_INET,  # IPv4 only
-        socket.SOCK_STREAM,
-        socket.IPPROTO_TCP
-    )
-
-    if not addrinfos:
-        raise socket.gaierror(f"No IPv4 addresses found for {host}")
-
-    # Get first IPv4 address
-    ip, port = addrinfos[0][4][0], addrinfos[0][4][1]
-    print(f"   Resolved to IPv4: {ip}:{port}")
-
-    # Override SMTP_HOST with IPv4 address
-    import os
-    os.environ["SMTP_HOST"] = ip  # Temporarily override
-
-    # Now run the normal mailer but with IPv4 host
-    run_mailer()
+    run_mailer(force_ipv4=True)
 
 
 def send_test_email(test_email):
@@ -410,8 +401,8 @@ def send_test_email(test_email):
     print("Whitelist mode:", WHITELIST_MODE)
     print("HELO domain:", HELO_DOMAIN)
 
-    if not RESUME_PATH.exists():
-        raise FileNotFoundError(f"Resume not found: {RESUME_PATH}")
+    if CAMPAIGN == "job" and not RESUME_PATH.is_file():
+     raise FileNotFoundError(f"Resume not found: {RESUME_PATH}")
 
     if not SMTP_HOST:
         raise RuntimeError("Missing SMTP_HOST env var")
@@ -499,6 +490,7 @@ def send_test_email(test_email):
 
     try:
         msg = build_message(test_email, subject, body)
+        
         server.send_message(msg)
         print(f"\n✅ TEST EMAIL SENT SUCCESSFULLY!")
         print(f"   To: {test_email}")
