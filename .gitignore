@@ -13,6 +13,8 @@ __pycache__/
 *.yml
 *.wal
 *.shm
+*.db-wal
+*.db-shm
 
 # Environment files (ignore real ones, keep .env.example)
 .env
