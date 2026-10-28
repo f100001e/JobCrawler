@@ -29,7 +29,7 @@ USER_AGENT = "MetaCrawler/1.0 (+polite; research)"
 CRAWL_DELAY = float(os.getenv("CRAWL_DELAY_SECONDS", "2.0"))  # Be extra polite with free sources
 
 MAX_COMPANIES_PER_DAY = int(os.getenv("MAX_COMPANIES_PER_DAY", "50"))
-MAX_CONTACTS_PER_COMPANY = int(os.getenv("MAX_CONTACTS_PER_COMPANY", "10"))
+MAX_CONTACTS_PER_COMPANY = int(os.getenv("MAX_CONTACTS_PER_COMPANY", "250"))
 MAX_API_CALLS_PER_RUN = int(os.getenv("MAX_API_CALLS_PER_RUN", "100"))
 
 APOLLO_API_KEY = os.getenv("APOLLO_API_KEY", "")
@@ -1278,80 +1278,33 @@ def hunter_domain_search(
     domain: str,
     max_contacts: int,
     max_api_calls: int,
+    start_offset: int = 0,
 ) -> tuple[dict, int]:
-    """Search Hunter.io with limit/offset pagination."""
+    """Fetch one Hunter email page. The caller owns per-domain pagination.
 
+    One page at a time permits committing newly found emails and next_offset
+    together, so crashes cannot lose the current position.
+    """
     if not HUNTER_API_KEY:
         raise RuntimeError("Missing HUNTER_API_KEY env var")
+    if max_api_calls < 1:
+        raise ValueError("No Hunter API-call allowance remaining")
+    if max_contacts < 1:
+        raise ValueError("No Hunter contact allowance remaining")
 
-    url = "https://api.hunter.io/v2/domain-search"
-    offset = 0
-    api_calls_used = 0
-    emails = []
-    seen_emails = set()
-    merged_response = None
-
-    while len(emails) < max_contacts and api_calls_used < max_api_calls:
-        page_limit = min(100, max_contacts - len(emails))
-
-        params = {
+    response = requests.get(
+        "https://api.hunter.io/v2/domain-search",
+        params={
             "domain": domain,
             "api_key": HUNTER_API_KEY,
-            "limit": page_limit,
-            "offset": offset,
-        }
-
-        response = requests.get(
-            url,
-            params=params,
-            headers=HEADERS,
-            timeout=30,
-        )
-
-        api_calls_used += 1
-        response.raise_for_status()
-        page_response = response.json()
-
-        if merged_response is None:
-            merged_response = page_response
-
-        page_emails = (
-            (page_response.get("data") or {}).get("emails") or []
-        )
-
-        if not page_emails:
-            break
-
-        for email_record in page_emails:
-            email_value = (
-                email_record.get("value") or ""
-            ).strip().lower()
-
-            if email_value and email_value not in seen_emails:
-                seen_emails.add(email_value)
-                emails.append(email_record)
-
-                if len(emails) >= max_contacts:
-                    break
-
-        offset += len(page_emails)
-
-        if len(page_emails) < page_limit:
-            break
-
-        time.sleep(CRAWL_DELAY)
-
-    if merged_response is None:
-        merged_response = {
-            "data": {
-                "organization": domain,
-                "emails": [],
-            }
-        }
-    else:
-        merged_response.setdefault("data", {})["emails"] = emails
-
-    return merged_response, api_calls_used
+            "limit": min(100, max_contacts),
+            "offset": start_offset,
+        },
+        headers=HEADERS,
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json(), 1
 
 
 def classify_contact(e: dict) -> int | None:
@@ -1597,6 +1550,24 @@ def init_db():
             total_processed INTEGER,
             updated_at TEXT
         )
+        """)
+
+        # Global email-only dedup. Preserve all existing contacts and sent flags.
+        # Existing historical duplicate rows remain untouched.
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_contacts_email_lower
+            ON contacts(LOWER(TRIM(email)))
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS contacts_no_duplicate_email_ci
+            BEFORE INSERT ON contacts
+            WHEN NEW.email IS NOT NULL AND EXISTS (
+                SELECT 1 FROM contacts
+                WHERE LOWER(TRIM(email)) = LOWER(TRIM(NEW.email))
+            )
+            BEGIN
+                SELECT RAISE(IGNORE);
+            END
         """)
 
         # Add missing columns if they don't exist
@@ -1906,300 +1877,285 @@ def process_companies(
     max_companies: int = MAX_COMPANIES_PER_DAY,
     state_name: str = "hunter_all",
 ):
-    """Process companies and fetch contacts through Hunter.io."""
-    
-    # ===== FIRST: Check if we already have contacts from Apollo =====
-    conn_check = sqlite3.connect(DB_PATH, timeout=30.0)
-    conn_check.execute("PRAGMA journal_mode=WAL")
-    
-    # Get all companies that already have contacts
-    existing_contacts = conn_check.execute("""
-        SELECT DISTINCT co.domain 
-        FROM companies co
-        INNER JOIN contacts c ON c.company_id = co.id
-    """).fetchall()
-    
-    existing_domains_with_contacts = {row[0] for row in existing_contacts}
-    conn_check.close()
-    
-    print(f"📊 {len(existing_domains_with_contacts)} companies already have contacts in DB")
-    
-    # Filter out companies that already have contacts
-    companies_to_process = []
-    for company in companies:
-        try:
-            domain = extract_domain(company["url"])
-            if domain not in existing_domains_with_contacts:
-                companies_to_process.append(company)
-            else:
-                print(f"   ⏭ Skipping {domain} - already has contacts")
-        except:
-            continue
-    
-    print(f"📊 {len(companies_to_process)} companies need Hunter.io processing")
-    
-    if not companies_to_process:
-        print("✅ All companies already have contacts. Skipping Hunter.io.")
-        return []
-    
-    # ===== Continue with Hunter.io for companies that need it =====
-    hunter_state = get_hunter_pagination_state(
-        DB_PATH,
-        state_name,
-    )
+    """Search every supplied company through Hunter, saving ONLY new emails.
 
-    start_index = hunter_state["companies_completed"]
-    total_contacts_collected = hunter_state["total_contacts"]
-    saved_last_domain = hunter_state["last_domain"]
-
-    # Check if we've already processed all companies
-    if start_index >= len(companies_to_process):
-        print(f"✅ All {len(companies_to_process)} companies already processed. Nothing to do.")
-        return []
-
-    batch_changed = False
-
-    if start_index > 0:
-        if start_index > len(companies_to_process):
-            batch_changed = True
-        else:
-            previous_company = companies_to_process[start_index - 1]
-            try:
-                previous_domain = extract_domain(previous_company["url"])
-                if previous_domain != saved_last_domain:
-                    batch_changed = True
-            except:
-                batch_changed = True
-
-    if batch_changed:
-        print("🔄 New or changed company batch detected; resetting cursor.")
-        start_index = 0
-        total_contacts_collected = 0
-
-        with sqlite3.connect(DB_PATH, timeout=30.0) as state_conn:
-            state_conn.execute(
-                "DELETE FROM crawler_metadata WHERE source_name = ?",
-                (state_name,),
+    Company records and previously contacted people never suppress a search.
+    The only resume state is Hunter's offset WITHIN an unfinished domain.
+    Apollo's separate discovery/processing functions are not involved here.
+    """
+    supplied = list(companies or [])
+    if max_companies is None:
+        batch = supplied
+    else:
+        if max_companies < 0:
+            raise ValueError("max_companies must be >= 0 or None")
+        batch = supplied[:max_companies]
+        if len(batch) < len(supplied):
+            print(
+                f"WARNING: Company cap {max_companies} excludes "
+                f"{len(supplied) - len(batch)} supplied entries."
             )
 
+    if not batch:
+        print("No companies supplied for Hunter.io")
+        return []
+
+    print(f"\n{'=' * 60}")
+    print(f"HUNTER [{state_name}]: SEARCHING {len(batch)} SUPPLIED COMPANY ENTRIES")
+    print(f"{'=' * 60}\n")
+
     results = []
-    total_api_calls_used = 0
-    companies_processed_this_run = 0
+    api_calls = 0
+    pages_fetched = 0
+    companies_started = 0
+    companies_finished = 0
+    new_emails_total = 0
+    stop_reason = None
 
     conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=30000")
 
     try:
-        # Calculate how many companies we can process (respecting max_companies)
-        remaining_companies = len(companies_to_process) - start_index
-        companies_to_process_batch = min(max_companies, remaining_companies)
-        
-        batch = companies_to_process[start_index:start_index + companies_to_process_batch]
-        print(f"  processing {len(batch)} companies (starting at index {start_index + 1})\n")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS hunter_domain_progress (
+                domain TEXT PRIMARY KEY,
+                next_offset INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        conn.commit()
 
-        for i, company in enumerate(batch, start_index + 1):
-            if total_api_calls_used >= MAX_API_CALLS_PER_RUN:
-                print(
-                    f"⚠️ Hunter API limit reached "
-                    f"({total_api_calls_used}/"
-                    f"{MAX_API_CALLS_PER_RUN})"
-                )
+        # No SELECT ... FROM companies to decide whether to search.
+        for position, company in enumerate(batch, 1):
+            if api_calls >= MAX_API_CALLS_PER_RUN:
+                stop_reason = "Hunter API-call budget reached"
                 break
-            
+
             try:
                 domain = extract_domain(company["url"])
-                company_name = company.get("name") or domain
+            except Exception as exc:
+                print(f"[{position}/{len(batch)}] Invalid domain: {exc}")
+                continue
 
-                print(
-                    f"[{i}/{len(companies_to_process)}] 🔍 "
-                    f"{company_name} ({domain})"
-                )
+            name = company.get("name") or domain
+            saved = conn.execute(
+                "SELECT next_offset FROM hunter_domain_progress WHERE domain = ?",
+                (domain,),
+            ).fetchone()
+            offset = saved[0] if saved else 0
+            companies_started += 1
+            print(
+                f"[{position}/{len(batch)}] Searching {name} ({domain})"
+                + (f" | resuming email offset {offset}" if offset else "")
+            )
 
-                hunter_data, api_calls_used = hunter_domain_search(
-                    domain,
-                    max_contacts=MAX_CONTACTS_PER_COMPANY,
-                    max_api_calls=(
-                        MAX_API_CALLS_PER_RUN - total_api_calls_used
-                    ),
-                )
+            company_new_contacts = []
+            company_new_count = 0
+            domain_finished = False
+            organization = name
 
-                total_api_calls_used += api_calls_used
+            # Stop only when the domain is exhausted, the NEW-email target is
+            # reached, or the real API-call budget is exhausted.
+            while (
+                company_new_count < MAX_CONTACTS_PER_COMPANY
+                and api_calls < MAX_API_CALLS_PER_RUN
+            ):
+                page_limit = min(100, MAX_CONTACTS_PER_COMPANY - company_new_count)
 
-                organization, contacts = extract_ranked_contacts(
-                    hunter_data,
-                    domain,
-                )
-
-                # Only insert if we have contacts
-                if contacts:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO companies (domain, organization) VALUES (?, ?)",
-                        (domain, organization if contacts else domain),
+                try:
+                    # Count attempts, including requests that fail.
+                    api_calls += 1
+                    response, _ = hunter_domain_search(
+                        domain,
+                        max_contacts=page_limit,
+                        max_api_calls=1,
+                        start_offset=offset,
                     )
+                    pages_fetched += 1
 
-                    total_contacts_collected += len(contacts)
-                    companies_processed_this_run += 1
-
-                    save_hunter_pagination_state(
-                        conn,
-                        state_name=state_name,
-                        companies_completed=i,
-                        last_domain=domain,
-                        total_contacts=total_contacts_collected,
+                    page_emails = ((response.get("data") or {}).get("emails") or [])
+                    organization, ranked_contacts = extract_ranked_contacts(
+                        response, domain
                     )
+                    new_contacts_this_page = []
+                    next_offset = offset + len(page_emails)
+                    page_finished = len(page_emails) < page_limit
+
+                    # Important: saving emails and the offset is ONE atomic
+                    # transaction. A crash cannot skip an unsaved page.
+                    with conn:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO companies (domain, organization) "
+                            "VALUES (?, ?)",
+                            (domain, organization or name),
+                        )
+                        company_id = conn.execute(
+                            "SELECT id FROM companies WHERE domain = ?",
+                            (domain,),
+                        ).fetchone()[0]
+
+                        for contact in ranked_contacts:
+                            email = (contact.get("email") or "").strip().lower()
+                            if not email or "@" not in email:
+                                continue
+
+                            # Global case-insensitive email-only deduplication;
+                            # never updates existing contacted/contacted_at.
+                            inserted = conn.execute("""
+                                INSERT OR IGNORE INTO contacts (
+                                    company_id, email, name, position,
+                                    department, confidence, type,
+                                    is_decision_maker, contacted
+                                )
+                                SELECT ?, ?, ?, ?, ?, ?, ?, ?, 0
+                                WHERE NOT EXISTS (
+                                    SELECT 1 FROM contacts
+                                    WHERE LOWER(TRIM(email)) = ?
+                                )
+                            """, (
+                                company_id, email,
+                                contact.get("name") or "N/A",
+                                contact.get("position") or "",
+                                contact.get("department") or "",
+                                contact.get("confidence"),
+                                contact.get("type") or "unknown",
+                                int(bool(contact.get("is_decision_maker"))),
+                                email,
+                            ))
+                            if inserted.rowcount:
+                                normalized = dict(contact)
+                                normalized["email"] = email
+                                new_contacts_this_page.append(normalized)
+
+                        if page_finished:
+                            # Domain is exhausted. A later run searches it
+                            # from offset zero again.
+                            conn.execute(
+                                "DELETE FROM hunter_domain_progress WHERE domain = ?",
+                                (domain,),
+                            )
+                        else:
+                            conn.execute("""
+                                INSERT INTO hunter_domain_progress
+                                    (domain, next_offset, updated_at)
+                                VALUES (?, ?, ?)
+                                ON CONFLICT(domain) DO UPDATE SET
+                                    next_offset = excluded.next_offset,
+                                    updated_at = excluded.updated_at
+                            """, (domain, next_offset, utc_now_iso()))
+
+                    offset = next_offset
+                    company_new_contacts.extend(new_contacts_this_page)
+                    company_new_count += len(new_contacts_this_page)
+                    new_emails_total += len(new_contacts_this_page)
 
                     print(
-                        f"    ✓ Found {len(contacts)} contacts "
-                        f"(used {api_calls_used} API call(s))"
+                        f"    Page returned {len(page_emails)} emails; "
+                        f"new saved {len(new_contacts_this_page)}; "
+                        f"next offset {offset}"
                     )
 
-                    results.append({
-                        "company": company_name,
-                        "domain": domain,
-                        "organization": organization,
-                        "contacts": contacts,
-                    })
-                else:
+                    if page_finished:
+                        domain_finished = True
+                        companies_finished += 1
+                        print("    Domain search complete")
+                        break
+
+                    if CRAWL_DELAY:
+                        time.sleep(CRAWL_DELAY)
+
+                except Exception as exc:
+                    conn.rollback()
+                    stop_reason = f"Hunter search failed for {domain}: {exc}"
+                    print(f"    ERROR: {stop_reason}")
+                    break
+
+            if company_new_contacts:
+                results.append({
+                    "company": name,
+                    "domain": domain,
+                    "organization": organization,
+                    "contacts": company_new_contacts,
+                })
+
+            if stop_reason:
+                break
+
+            if not domain_finished:
+                if company_new_count >= MAX_CONTACTS_PER_COMPANY:
                     print(
-                        f"    ✗ No contacts found "
-                        f"(used {api_calls_used} API call(s))"
+                        f"    Paused after {company_new_count} new emails; "
+                        "per-domain offset saved for next run"
                     )
-
-                if i % 10 == 0:
-                    conn.commit()
-
-                time.sleep(CRAWL_DELAY)
-
-            except Exception as e:
-                print(f"    ✗ Error: {e}")
-                conn.rollback()
-                time.sleep(CRAWL_DELAY * 2)
-
-        conn.commit()  # Final commit
-
-        final_state = get_hunter_pagination_state(
-            DB_PATH,
-            state_name,
-        )
+                elif api_calls >= MAX_API_CALLS_PER_RUN:
+                    stop_reason = "Hunter API-call budget reached"
+                    print("    Paused mid-domain; email-page offset saved")
+                    break
 
         print("\n" + "=" * 60)
-        print("HUNTER RUN SUMMARY")
+        print("HUNTER SUMMARY")
         print("=" * 60)
-        print(f"Companies processed this run: {companies_processed_this_run}")
-        print(
-            f"Companies completed overall: "
-            f"{final_state['companies_completed']}/{len(companies_to_process)}"
-        )
-        print(f"Contacts collected overall: {final_state['total_contacts']}")
-        print(f"API calls used this run: {total_api_calls_used}")
+        print(f"Company entries started: {companies_started}/{len(batch)}")
+        print(f"Domains fully exhausted this run: {companies_finished}")
+        print(f"Hunter pages fetched: {pages_fetched}")
+        print(f"New unique emails saved: {new_emails_total}")
+        print(f"API calls attempted: {api_calls}/{MAX_API_CALLS_PER_RUN}")
+        if stop_reason:
+            print(f"INCOMPLETE RUN: {stop_reason}")
+        else:
+            print("All queued company entries visited this run")
         print("=" * 60)
 
     finally:
         conn.close()
-    
-    # Save results
+
+    # JSON is a backup/export; the database was updated after EVERY page.
     if results:
-        output_file = BASE_DIR / f"contacts_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(results, f, indent=2)
-        print(f"\n✓ Saved {len(results)} companies with contacts to {output_file}")
-    
+        output_file = BASE_DIR / (
+            f"contacts_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.json"
+        )
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=2, ensure_ascii=False)
+        print(f"Saved {new_emails_total} NEW emails to {output_file.name}")
+
     return results
 
-def get_hunter_pagination_state(
-    db_path: Path,
-    state_name: str = "hunter_all",
-) -> dict:
-    with sqlite3.connect(db_path, timeout=30.0) as conn:
-        conn.execute("PRAGMA journal_mode=WAL")
-        ensure_crawler_metadata(conn)
-
-        row = conn.execute(
-            """
-            SELECT last_page, last_cursor, total_processed, updated_at
-            FROM crawler_metadata
-            WHERE source_name = ?
-            """,
-            (state_name,),
-        ).fetchone()
-
-    if not row:
-        return {
-            "companies_completed": 0,
-            "last_domain": None,
-            "total_contacts": 0,
-            "updated_at": None,
-        }
-
-    return {
-        "companies_completed": row[0] or 0,
-        "last_domain": row[1],
-        "total_contacts": row[2] or 0,
-        "updated_at": row[3],
-    }
-
-
-def save_hunter_pagination_state(
-    conn,
-    state_name: str,
-    companies_completed: int,
-    last_domain: str,
-    total_contacts: int,
-):
-    ensure_crawler_metadata(conn)
-
-    conn.execute(
-        """
-        INSERT OR REPLACE INTO crawler_metadata
-        (source_name, last_page, last_cursor, total_processed, updated_at)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        (
-            state_name,
-            companies_completed,
-            last_domain,
-            total_contacts,
-            datetime.now(timezone.utc).isoformat(),
-        ),
-    )
-
-
 def reset_hunter_pagination(db_path: Path):
+    """Clear unfinished Hunter email-page checkpoints (not Apollo state)."""
     with sqlite3.connect(db_path, timeout=30.0) as conn:
-        conn.execute("PRAGMA journal_mode=WAL")
-        ensure_crawler_metadata(conn)
-        conn.execute(
-            "DELETE FROM crawler_metadata WHERE source_name LIKE 'hunter_%'"
-        )
-
-    print("✓ Hunter pagination reset")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS hunter_domain_progress (
+                domain TEXT PRIMARY KEY,
+                next_offset INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        conn.execute("DELETE FROM hunter_domain_progress")
+        # Old company-level pagination is retired.
+        conn.execute("DELETE FROM crawler_metadata WHERE source_name LIKE 'hunter_%'")
+    print("Hunter per-domain email checkpoints reset")
 
 
 def show_hunter_status(db_path: Path):
-    modes = (
-        ("All sources", "hunter_all"),
-        ("Local file", "hunter_local"),
-        ("YAML file", "hunter_yaml"),
-    )
+    """List unfinished Hunter domain/email offsets."""
+    with sqlite3.connect(db_path, timeout=30.0) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS hunter_domain_progress (
+                domain TEXT PRIMARY KEY,
+                next_offset INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        rows = conn.execute(
+            "SELECT domain, next_offset, updated_at "
+            "FROM hunter_domain_progress ORDER BY domain"
+        ).fetchall()
+    if not rows:
+        print("Hunter: no unfinished domain email searches")
+    for domain, offset, updated_at in rows:
+        print(f"Hunter pending: {domain}, next email offset {offset}, {updated_at}")
 
-    print("Hunter Status:")
-
-    for label, state_name in modes:
-        state = get_hunter_pagination_state(db_path, state_name)
-
-        print(f"\n  {label}:")
-        print(
-            f"    Companies completed: "
-            f"{state['companies_completed']}"
-        )
-        print(
-            f"    Next company position: "
-            f"{state['companies_completed'] + 1}"
-        )
-        print(f"    Last domain: {state['last_domain'] or 'N/A'}")
-        print(f"    Contacts collected: {state['total_contacts']}")
-        print(f"    Last updated: {state['updated_at'] or 'N/A'}")
 
 def discover_companies_from_local_file_only() -> List[Dict]:
     """Discover companies ONLY from target_companies.txt"""
@@ -2218,30 +2174,19 @@ def discover_companies_from_local_file_only() -> List[Dict]:
 
     companies = fetch_from_source('local_txt', source_config)
 
-    unique_companies = []
-    seen_domains = set()
+    valid_companies = []
     for company in companies or []:
-        url = company.get('url', '')
-        if not url:
-            continue
-
         try:
-            domain = extract_domain(url)
-        except Exception:
+            extract_domain(company["url"])
+        except Exception as exc:
+            print(f"   Invalid TXT entry: {exc}")
             continue
+        company["source_name"] = "local_txt"
+        valid_companies.append(company)
 
-        if domain in seen_domains:
-            continue
+    print(f"\n📊 LOCAL FILE ENTRIES FOUND: {len(valid_companies)}\n")
+    return valid_companies
 
-        seen_domains.add(domain)
-        company['source_name'] = 'local_txt'
-        unique_companies.append(company)
-
-    print(f"\n{'=' * 60}")
-    print(f"📊 LOCAL FILE COMPANIES FOUND: {len(unique_companies)}")
-    print(f"{'=' * 60}\n")
-
-    return unique_companies
 
 
 def discover_companies_from_free_sources() -> List[Dict]:
@@ -2348,15 +2293,10 @@ if __name__ == "__main__":
             print("No companies found in local file. Exiting.")
             sys.exit(0)
 
-        max_to_process = min(
-            MAX_COMPANIES_PER_DAY,
-            len(companies),
-        )
-
         process_companies(
             companies,
-            max_companies=max_to_process,
-            state_name="hunter_all",
+            max_companies=len(companies),
+            state_name="hunter_local",
         )
 
         print("\nLOCAL FILE CRAWLER COMPLETE")
