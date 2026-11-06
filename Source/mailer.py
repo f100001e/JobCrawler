@@ -12,6 +12,7 @@ import sys
 import socket
 import argparse
 import csv
+from nameparser import HumanName
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
@@ -46,7 +47,10 @@ def build_message(to_email: str, subject: str, body: str, cc: bool = False) -> E
     msg["From"] = FROM_EMAIL
     msg["To"] = to_email
     msg["Subject"] = subject
-    msg.set_content(body)
+    if CAMPAIGN == "ppla":
+        msg.add_alternative(body, subtype="html")
+    else:
+        msg.set_content(body)
 
     if cc and CC_EMAIL:
         msg["Cc"] = CC_EMAIL
@@ -61,6 +65,27 @@ def build_message(to_email: str, subject: str, body: str, cc: bool = False) -> E
         )
     return msg
 
+GENERIC_NAMES = {
+    "info", "sales", "support", "contact",
+    "admin", "office", "hello", "team",
+    "marketing", "press", "jobs", "careers",
+    "billing", "service", "enquiries"
+}
+
+def name_from_email(email: str) -> str:
+    local = email.split("@")[0].lower()
+    local = local.replace(".", " ").replace("_", " ")
+
+    parts = local.split()
+
+    if not parts or parts[0] in GENERIC_NAMES:
+        return ""
+
+    if not parts[0].isalpha():
+        return ""
+
+    name = HumanName(local)
+    return name.first.title()
 
 def fetch_send_queue(conn: sqlite3.Connection, limit: int):
     cur = conn.cursor()
@@ -98,22 +123,65 @@ def build_body(first: str, domain: str, cat: str = "open") -> str:
     greeting = f"Hi {first}," if first else "Hi,"
     
     if CAMPAIGN == "ppla":
-        return f"""{greeting}
+        
+        return f"""\
+        <html>
+        <body style="font-family:Arial,sans-serif; font-size:14px; line-height:1.5; color:#222;">
 
-Press Pass LA is celebrating 15 years of entertainment coverage, and we're marking the milestone with a special Hollywood event on November 10, from 6–9 PM, at White Rabbit Sky Lounge.
+        <p>{greeting}</p>
 
-The evening will bring together entertainment industry professionals, VIPs, and talent, alongside the unveiling of our Winter 2027 print issue cover and a preview of our new content studio.
+        <p>Press Pass LA is celebrating <strong>15 years of entertainment coverage</strong>,
+        and we're marking the milestone with a special Hollywood event on
+        <strong>November 10, from 6–9 PM, at White Rabbit Sky Lounge.</strong></p>
 
-We're currently exploring brand partnerships and sponsorship opportunities for the celebration and welcome introductions to businesses interested in participating. Referral compensation may be available for successful sponsorship introductions.
+        <p>The evening will bring together entertainment industry professionals,
+        VIPs, and talent, alongside the unveiling of our Winter 2027 print issue
+        cover and a preview of our new content studio.</p>
 
-For partnership details or to connect us with a potential sponsor, please contact Jennifer@presspassla.com.
+        <p>We're currently exploring brand partnerships and sponsorship opportunities
+        for the celebration and welcome introductions to businesses interested in
+        participating. Referral compensation may be available for successful
+        sponsorship introductions.</p>
 
-Best,
-Jennifer Buonantony
-Founder & CEO, Press Pass LA
-presspassla.com
+        <p><strong>WINTER 2027 HONOREES</strong></p>
+        <ul>
+            <li><strong>Ruben Rojas</strong> — Art</li>
+            <li><strong>Walter Mendez</strong> — Fashion</li>
+            <li><strong>Gleb Savchenko</strong> — Dance</li>
+            <li><strong>Sam Asghari</strong> — Lifestyle</li>
+            <li><strong>Jo Frost</strong> — Television</li>
+            <li><strong>Virginia Gardner</strong> — Film</li>
+            <li><strong>Jacob Nowell</strong> — Music</li>
+        </ul>
 
-"""
+        <p>Additional celebrity talent in attendance!</p>
+
+        <p><strong>PRESS MOMENTS</strong></p>
+        <ul>
+            <li>Featured cover stories for our Winter 2027 honorees</li>
+            <li>Menu by Farm Dinner LA</li>
+            <li>Partners: VIP Aesthetics LA &amp; NVS Design</li>
+            <li>Music by DJ Aaron Colbert</li>
+            <li>Photo booth by Elysian Reflection</li>
+            <li>Gift bags featuring Cotrini Skincare, Ever Flora Botanicals,
+            True Niagen, Heather Nicole Skincare, Pixi Beauty, The Tie Bar,
+            Femme Fatale Nails, Tractor Organic Craft Beverages, Mamame Tempe Chips,
+            Glamour Garden Cosmetics, and more</li>
+        </ul>
+
+        <p>For partnership details or to connect us with a potential sponsor,
+        please contact
+        <a href="mailto:Jennifer@presspassla.com">Jennifer@presspassla.com</a>.</p>
+
+        <p>Best,<br>
+        <strong>Jennifer Buonantony</strong><br>
+        Founder &amp; CEO, Press Pass LA<br>
+        <a href="https://presspassla.com">presspassla.com</a></p>
+
+        </body>
+        </html>
+        """
+
     else:
         return f"""{greeting}
 
@@ -129,11 +197,21 @@ LinkedIn: linkedin.com/in/frank-l-elliott
 Columns: sxhx.news
 """
     
-def default_body(domain: str, category: str | None, name: str | None = None, email_type: str | None = None) -> str:
+def default_body(
+    domain: str,
+    category: str | None,
+    name: str | None = None,
+    email_type: str | None = None,
+    email: str | None = None
+) -> str:
     first = None
+
     if (email_type or "").lower() != "generic":
         if name and name.strip() and name.strip().upper() != "N/A":
             first = name.strip().split()[0]
+        elif email:
+            first = name_from_email(email)
+
     return build_body(first, domain)
 
 def check_and_import_json_if_empty():
@@ -189,6 +267,15 @@ def test_smtp_connection(server):
         return status == 250
     except:
         return False
+
+def reconnect_smtp(server, force_ipv4=False):
+    try:
+        server.close()
+    except Exception:
+        pass
+
+    # Reuse the existing SMTP connection setup
+    return connect_csv_smtp(google_admin=force_ipv4)
 
 def get_one_contact_per_domain(conn) -> list:
     """Pick highest priority contact per domain"""
@@ -316,7 +403,12 @@ def run_mailer(force_ipv4=False):
                     subject = "PPLA Social + PR — Introduction"
                 else:
                     subject = f"{category} roles at {domain}"
-                body = default_body(domain, category, name=name, email_type=email_type)
+                body = default_body(
+                    domain, category,
+                    name=name,
+                    email_type=email_type,
+                    email=to_email
+                )
 
                 try:
                     msg = build_message(to_email, subject, body, cc=(i == 1))
@@ -327,7 +419,12 @@ def run_mailer(force_ipv4=False):
                         # Check connection before sending
                         if not test_smtp_connection(server):
                             print("⚠ Connection lost, reconnecting...")
-                            server.ehlo(HELO_DOMAIN)
+                            try:
+                                server.close()
+                            except OSError:
+                                pass
+
+                            server = connect_csv_smtp(google_admin=WHITELIST_MODE)
 
                         server.send_message(msg)
 
@@ -695,7 +792,7 @@ def run_csv_mailer(csv_path, google_admin=False):
                 target = "your organization"
 
             if CAMPAIGN == "ppla":
-                subject = "PPLA Social + PR — Introduction"
+                subject = "PPLA Celebrating 15 Years of Impact — Partnership Opportunity"
             else:
                 subject = f"Open roles at {target}"
 
@@ -703,7 +800,8 @@ def run_csv_mailer(csv_path, google_admin=False):
                 target,
                 "Open",
                 name=name,
-                email_type="personal"
+                email_type="personal",
+                email=email
             )
 
             try:
